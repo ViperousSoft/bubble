@@ -9,7 +9,9 @@ export enum Terrain{
 export enum BType{
     BLUE,
     RED,
-    BLACK
+    BLACK,
+    GREEN,
+    PURPLE
 }
 export enum EType{
     O,
@@ -17,7 +19,13 @@ export enum EType{
     BLACK
 }
 export enum BoxType{
-
+    O,
+    N,
+    RED,
+    GREEN,
+    PURPLE,
+    BLUE,
+    BLACK
 }
 
 export class Board{
@@ -84,7 +92,7 @@ class BasePhysicsModel{
 }
 
 export class BoardLike extends BasePhysicsModel{
-    v:Phaser.Math.Vector2;
+    protected v:Phaser.Math.Vector2;
     constructor(scene:BaseScene,sprite:Phaser.Types.Physics.Arcade.SpriteWithDynamicBody){
         super(scene,sprite);
         this.v=new Phaser.Math.Vector2();
@@ -103,12 +111,12 @@ export class Bubble extends BoardLike{
     constructor(scene:BaseScene,type:BType){
         super(scene,scene.physics.add.sprite(0,0,"bub"));
         this.type=type;
-        this.sprite.tint=type===BType.RED?0xff0000:type===BType.BLUE?0x0000ff:0x000000;
+        //this.sprite.tint=type===BType.RED?0xff0000:type===BType.BLUE?0x0000ff:0x000000;
 
     }
     start(s:number){
         this.activate();
-        this.sprite.play("bubble");
+        this.sprite.play(`bubble${this.type}`);
         this.scene.time.addEvent({
             delay:s,
             callback:()=>{

@@ -65,8 +65,47 @@ export class BaseScene extends Phaser.Scene{
     }
     create(){
         this.anims.create({
-            key:"bubble",
-            frames:this.anims.generateFrameNumbers("bub"),
+            key:`bubble${BType.BLUE}`,
+            frames:this.anims.generateFrameNumbers("bub",{
+                start:0,
+                end:5
+            }),
+            frameRate:6,
+            repeat:-1
+        });
+        this.anims.create({
+            key:`bubble${BType.RED}`,
+            frames:this.anims.generateFrameNumbers("bub",{
+                start:6,
+                end:11
+            }),
+            frameRate:6,
+            repeat:-1
+        });
+        this.anims.create({
+            key:`bubble${BType.BLACK}`,
+            frames:this.anims.generateFrameNumbers("bub",{
+                start:12,
+                end:17
+            }),
+            frameRate:6,
+            repeat:-1
+        });
+        this.anims.create({
+            key:`bubble${BType.GREEN}`,
+            frames:this.anims.generateFrameNumbers("bub",{
+                start:18,
+                end:23
+            }),
+            frameRate:6,
+            repeat:-1
+        });
+        this.anims.create({
+            key:`bubble${BType.PURPLE}`,
+            frames:this.anims.generateFrameNumbers("bub",{
+                start:24,
+                end:29
+            }),
             frameRate:6,
             repeat:-1
         });
