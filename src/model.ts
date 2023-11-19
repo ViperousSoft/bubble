@@ -129,10 +129,25 @@ export class Bubble extends BoardLike{
         this.scene.sound.play("explode");
         switch(this.type){
         case BType.BLUE:
-            [Pivot.W,Pivot.E,Pivot.N,Pivot.S].forEach(element => {
-                const l=new Explosion(this.scene,EType.O);
-                l.setUnit(this.getUnit().add(Player.getBaseVelocity(element)));
-                //console.log(l.v);
+            for(let i=-1;i<=1;i++){
+                for(let j=-1;j<=1;j++){
+                    const l=new Explosion(this.scene,EType.O);
+                    l.setUnit(this.getUnit().add(new Phaser.Math.Vector2(i,j)));
+                    l.activate();
+                    this.scene.time.addEvent({
+                        delay:500,
+                        callback:()=>{
+                            l.sprite.destroy();
+                        }
+                    });
+
+                }
+            }
+            break;
+        case BType.RED:
+            [Player.getBaseVelocity(Pivot.W),Player.getBaseVelocity(Pivot.E),Player.getBaseVelocity(Pivot.N),Player.getBaseVelocity(Pivot.S),new Phaser.Math.Vector2(0,0)].forEach(v=>{
+                const l=new Explosion(this.scene,EType.RED);
+                l.setUnit(this.getUnit().add(v));
                 l.activate();
                 this.scene.time.addEvent({
                     delay:500,
@@ -141,7 +156,6 @@ export class Bubble extends BoardLike{
                     }
                 });
             });
-            
             break;
         }
     }

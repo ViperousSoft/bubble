@@ -7,6 +7,7 @@ export class Keyboard{
     D: Phaser.Input.Keyboard.Key;
     S: Phaser.Input.Keyboard.Key;
     Q: Phaser.Input.Keyboard.Key;
+    E: Phaser.Input.Keyboard.Key;
     cursorKeys:Phaser.Types.Input.Keyboard.CursorKeys;
     constructor(scene:Phaser.Scene){
         this.scene=scene;
@@ -15,6 +16,7 @@ export class Keyboard{
         this.D=scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D);
         this.S=scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S);
         this.Q=scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
+        this.E=scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
         this.cursorKeys=scene.input.keyboard!.createCursorKeys();
     }
 }

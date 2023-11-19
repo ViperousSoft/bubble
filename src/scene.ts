@@ -202,5 +202,8 @@ export class S extends BaseScene{
         if(this.keyboard!.Q.isDown){
             this.boy!.bubble(BType.BLUE);
         }
+        if(this.keyboard!.E.isDown){
+            this.boy!.bubble(BType.RED);
+        }
     }
 }
