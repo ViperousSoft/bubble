@@ -14,23 +14,6 @@ export default defineConfig({
             {
                 test:/\.(mp3|wav|bmp|jpe?g|png|svg|gif)$/,
                 type:"asset/resource"
-            },
-            {
-                test:/\.css$/,
-                use:[
-                    {
-                        loader:"postcss-loader",
-                        options:{
-                            postcssOptions:{
-                                plugins:[
-                                    [
-                                        "postcss-preset-env"
-                                    ]
-                                ]
-                            }
-                        }
-                    }
-                ]
             }
         ]
     },
@@ -40,8 +23,5 @@ export default defineConfig({
     //devtool:false,
     plugins:[new rspack.HtmlRspackPlugin({
         template:"src/index.html"
-    })],
-    builtins:{
-        react:{runtime:"classic"}
-    }
+    })]
 });
