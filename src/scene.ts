@@ -1,56 +1,24 @@
 import Phaser from "phaser";
 import {Keyboard} from "./ctrl";
-import {Bubble,Boy,Board,Terrain,BType,Pivot} from "./model";
+import {Bubble,Boy,Board,Terrain,BType,Pivot,BoxType,EType,Explosion,Player} from "./model";
+import {iterateX} from "./utils";
 import bub from "../assets/bubble.png";
 import boy from "../assets/boy.png";
 import girl from "../assets/girl.png";
 import blk from "../assets/blocks.png";
 import expl from "../assets/explosion.png";
+import box from "../assets/boxes.png";
 import loon from "../assets/Laura Shigihara - Loonboon.mp3";
 import explode from "../assets/explosion.wav";
 
-/*export class Mgr{
-    //static mgr:Mgr;
-    scene:BaseScene;
-    private _keyboard?:Keyboard;
-    //private _boySprite?:Boy;
-    //private _tiles?:Board;
-    private _bgm?:Phaser.Sound.BaseSound;
-    constructor(scene:BaseScene){
-        this.scene=scene;
-    }
-    preload(){
-        
-        //this._tiles=this.scene.make.tilemap({key:"map"});
-        //this._tiles.addTilesetImage("ground","block");
-        //this._ground=this._tiles.createLayer("ground","ground")!.setCollisionByExclusion([0]);
-    }
-    create(){
-        //this._tiles=this.scene.createBoard();
-        //this._ground=this.tiles.map.createBlankLayer("ground","block",0,0,40,40);
-        //this.ground.fill(0,0,0,40,40);
-        
-        //this.tiles.createLayer(0,"block")?.fill(0,0,0,40,40);
-        //this._bgm=this.scene.sound.add("bgm");
-        
-        this._keyboard=new Keyboard(this.scene);
-        //this._boySprite=new Boy(this.scene);
-    }
-    get keyboard(){
-        return this._keyboard!;
-    }
-    get bgm(){
-        return this._bgm!;
-    }
-}*/
 
 export class BaseScene extends Phaser.Scene{
     board?:Board;
     keyboard?:Keyboard;
+    egroup?:Phaser.Physics.Arcade.Group;
     constructor(){
         super("BaseScene");
         
-        //this.mgr=new Mgr(this);
     }
     preload(){
         this.load.spritesheet("bub",bub,{frameWidth:46,frameHeight:46});
@@ -58,10 +26,10 @@ export class BaseScene extends Phaser.Scene{
         this.load.spritesheet("girl",girl,{frameWidth:48,frameHeight:60});
         this.load.spritesheet("block",blk,{frameWidth:40,frameHeight:40});
         this.load.spritesheet("expl",expl,{frameWidth:40,frameHeight:40});
+        this.load.spritesheet("box",box,{frameWidth:40,frameHeight:40});
         //this.load.image("expl",expl);
         this.load.audio("bgm",loon);
         this.load.audio("explode",explode);
-        //this.mgr.preload();
     }
     create(){
         this.anims.create({
@@ -148,7 +116,117 @@ export class BaseScene extends Phaser.Scene{
         this.sound.add("bgm");
         this.sound.add("explode");
         this.keyboard=new Keyboard(this);
-        //this.mgr.create();
+        this.egroup=this.physics.add.group();
+    }
+    pop(b:Bubble){
+        this.sound.play("explode");
+        switch(b.type){
+        case BType.BLUE:
+            for(let i=-1;i<=1;i++){
+                for(let j=-1;j<=1;j++){
+                    const l=new Explosion(this,EType.O);
+                    l.setUnit(b.getUnit().add(new Phaser.Math.Vector2(i,j)));
+                    l.activate();
+                    this.time.addEvent({
+                        delay:500,
+                        callback:()=>{
+                            l.sprite.destroy();
+                        }
+                    });
+
+                }
+            }
+            break;
+        case BType.RED:
+            [Player.getBaseVelocity(Pivot.W),Player.getBaseVelocity(Pivot.E),Player.getBaseVelocity(Pivot.N),Player.getBaseVelocity(Pivot.S),new Phaser.Math.Vector2(0,0)].forEach(v=>{
+                const l=new Explosion(this,EType.RED);
+                l.setUnit(b.getUnit().add(v));
+                l.activate();
+                this.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            });
+            break;
+        case BType.GREEN:
+            for(let i=0;i<this.board!.map.width;i++){
+                const l=new Explosion(this,EType.O);
+                l.setUnit(new Phaser.Math.Vector2(i,b.getUnit().y));
+                l.activate();
+                this.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            }
+            for(let j=0;j<this.board!.map.height;j++){
+                if(j==b.getUnit().y){
+                    continue;
+                }
+                const l=new Explosion(this,EType.O);
+                l.setUnit(new Phaser.Math.Vector2(b.getUnit().x,j));
+                l.activate();
+                this.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            }
+            break;
+        case BType.BLACK:
+            [Pivot.W,Pivot.S,Pivot.E,Pivot.N].forEach(p=>{
+                const l=new Explosion(this,EType.BLACK);
+                l.setUnit(b.getUnit().add(Player.getBaseVelocity(p)));
+                l.activate();
+                this.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            });
+            break;
+        case BType.PURPLE:
+            iterateX(2,(v)=>{
+                const l=new Explosion(this,EType.O);
+                l.setUnit(b.getUnit().add(v));
+                l.activate();
+                this.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            });
+            /*for(let i=-2;i<=2;i++){
+                for(let j=-2;j<=2;j++){
+                    if(Math.random()<0.5){
+                        continue;
+                    }
+                    const l=new Explosion(this,EType.RED);
+                    try{
+                        l.setUnit(b.getUnit().add(new Phaser.Math.Vector2(i,j)));
+                    }catch(e){
+                        l.sprite.destroy();
+                        continue;
+                    }
+                    
+                    l.activate();
+                    this.time.addEvent({
+                        delay:500,
+                        callback:()=>{
+                            l.sprite.destroy();
+                        }
+                    });
+                }
+            }*/
+            break;
+        default:break;
+        }
     }
 }
 
@@ -156,34 +234,65 @@ export class S extends BaseScene{
     boy?:Boy;
     create(){
         super.create();
-        this.board=new Board(this,20,20);
+        const w=40,h=40;
+        this.board=new Board(this,w,h);
         
-        const l=this.board!.map.createBlankLayer("ground","block",0,0,20,20)!;
-        l.fill(Terrain.EMPTY,0,0,20,20);
-        l.fill(Terrain.TREE,0,0,20,1);
-        l.fill(Terrain.TREE,0,19,20,1);
-        l.fill(Terrain.TREE,0,0,1,20);
-        l.fill(Terrain.TREE,19,0,1,20);
-        for(let i=0;i<30;i++){
-            l.fill(Terrain.CACTUS,Math.floor(Math.random()*18)+1,Math.floor(Math.random()*18)+1,1,1)
+        const l=this.board!.map.createBlankLayer("ground","block",0,0,w,h)!;
+        l.fill(Terrain.EMPTY,0,0,w,h);
+        l.fill(Terrain.TREE,0,0,w,1);
+        l.fill(Terrain.TREE,0,h-1,w,1);
+        l.fill(Terrain.TREE,0,0,1,h);
+        l.fill(Terrain.TREE,w-1,0,1,h);
+        for(let i=0;i<100;i++){
+            l.putTileAt(Terrain.CACTUS,Math.floor(Math.random()*(w-2))+1,Math.floor(Math.random()*(h-2))+1);
         }
-        l.setCollisionByExclusion([Terrain.EMPTY]);
+        l.setCollisionBetween(1,100);
+
+        const s=this.board!.map.createBlankLayer("box","box",0,0,w,h)!;
+        for(let i=0;i<w;i++){
+            for(let j=0;j<h;j++){
+                if(l.getTileAt(i,j).index==Terrain.EMPTY&&Math.random()<0.5){
+                    if(Math.random()<0.1){
+                        s.putTileAt(BoxType.DARK,i,j);
+                    }
+                    else if(Math.random()<0.1){
+                        s.putTileAt(BoxType.BLUE,i,j);
+                        
+                    }
+                    else if(Math.random()<0.1){
+                        s.putTileAt(BoxType.PURPLE,i,j);
+                        
+                    }
+                    else if(Math.random()<0.1){
+                        s.putTileAt(BoxType.BLACK,i,j);
+                        
+                    }
+                    else{
+                        s.putTileAt(BoxType.SILVER,i,j);
+                    }
+                    
+                    //s.fill(Math.random()<0.3?BoxType.BLACK:BoxType.GREEN,i,j,1,1);
+                }
+
+            }
+        }
+        s.setCollisionBetween(0,100);
 
         this.boy=new Boy(this);
         
         //new Bubble(this,0).start(3000);
-        this.boy.setPosition({x:200,y:200});
+        //this.boy.setPosition({x:200,y:200});
+        this.boy.setUnit({x:10,y:10});
         this.boy.activate();
         this.boy.sprite.body.setSize(10,10,false);
         this.boy.sprite.body.setOffset(19,45);
-        //this.boy.sprite.setOrigin(0.1,0.3);
-        
-        //this.boy.sprite.body.setOffset(this.boy.sprite.originX)
-        //this.boy.sprite.body.setOffset(0,0);
         this.physics.add.collider(this.boy.sprite,l);
+        this.physics.add.collider(this.boy.sprite,s);
+        this.cameras.main.startFollow(this.boy.sprite).setBounds(0,0,this.board.map.widthInPixels,this.board.map.heightInPixels);
         this.sound.play("bgm",{loop:true});
     }
     update(time: number, delta: number){
+        const bo=this.board!.map.getLayer("box")!.tilemapLayer;
         if(this.keyboard!.A.isDown){
             this.boy!.start(Pivot.W);
         }
@@ -205,5 +314,98 @@ export class S extends BaseScene{
         if(this.keyboard!.E.isDown){
             this.boy!.bubble(BType.RED);
         }
+        this.physics.overlap(this.boy!.sprite,this.egroup!,(a,b)=>{
+            a=a as Phaser.Types.Physics.Arcade.GameObjectWithBody;
+            b=b as Phaser.Types.Physics.Arcade.GameObjectWithBody;
+
+            console.log(b.state);
+        });
+        this.physics.overlap(bo,this.egroup!,(b,a)=>{
+            a=a as Phaser.Tilemaps.Tile;
+            b=b as Phaser.Types.Physics.Arcade.GameObjectWithBody;
+            
+            //console.log((b as any).index);
+            switch(a.index){
+            case BoxType.O:
+                bo.putTileAt(-1,a.x,a.y);
+                //bo.putTileAt()
+                //a.index=-1;
+                break;
+            case BoxType.N:
+                if(b.state===EType.O){
+                    //bo.fill(BoxType.O,a.x,a.y,1,1);
+                    bo.putTileAt(BoxType.O,a.x,a.y);
+                    //a.index=BoxType.O;
+                }
+                else{
+                    bo.fill(-1,a.x,a.y,1,1);
+                    //bo.putTileAt(-1,a.x,a.y);
+                    //a.index=-1;
+                }
+                break;
+            case BoxType.SILVER:
+                if(b.state===EType.O){
+                    //a.index=BoxType.N;
+                    bo.putTileAt(BoxType.N,a.x,a.y);
+                }
+                else if(b.state===EType.RED){
+                    //a.index=BoxType.O;
+                    bo.putTileAt(BoxType.O,a.x,a.y);
+                }
+                else{
+                    //a.index=-1;
+                    bo.putTileAt(-1,a.x,a.y);
+                }
+                break;
+            case BoxType.BLUE:
+                //a.index=-1;
+                bo.putTileAt(-1,a.x,a.y);
+                const x=new Bubble(this,BType.BLUE);
+                x.setUnit(a);
+                x.start(2000);
+                break;
+            case BoxType.RED:
+                //a.index=-1;
+                bo.putTileAt(-1,a.x,a.y);
+                const y=new Bubble(this,BType.RED);
+                y.setUnit(a);
+                y.start(2000);
+                break;
+            case BoxType.BLACK:
+                //a.index=-1;
+                bo.putTileAt(-1,a.x,a.y);
+                const z=new Bubble(this,BType.BLACK);
+                z.setUnit(a);
+                z.start(2000);
+                break;
+            case BoxType.GREEN:
+                //a.index=-1;
+                bo.putTileAt(-1,a.x,a.y);
+                const w=new Bubble(this,BType.GREEN);
+                w.setUnit(a);
+                w.start(2000);
+                break;
+            case BoxType.PURPLE:
+                //a.index=-1;
+                bo.putTileAt(-1,a.x,a.y);
+                const v=new Bubble(this,BType.PURPLE);
+                v.setUnit(a);
+                v.start(2000);
+                break;
+            case BoxType.DARK:
+                if(b.state===EType.RED||b.state===EType.BLACK){
+                    //a.index=-1;
+                    bo.putTileAt(-1,a.x,a.y);
+                }
+                break;
+            default:break;
+            }
+            //a.resetCollision();
+        });
+        this.egroup!.children.iterate((c)=>{
+            this.physics.world.disable(c);
+            return true;
+        });
+        //this.board!.map.setCollisionByExclusion([-1]);
     }
 }

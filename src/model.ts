@@ -25,7 +25,9 @@ export enum BoxType{
     GREEN,
     PURPLE,
     BLUE,
-    BLACK
+    BLACK,
+    SILVER,
+    DARK
 }
 
 export class Board{
@@ -35,9 +37,10 @@ export class Board{
         this.scene=scene;
         this.map=scene.add.tilemap(undefined,40,40,width,height);
         this.map.addTilesetImage("block","block");
+        this.map.addTilesetImage("box","box");
     }
     private findTile({x,y}:Phaser.Types.Math.Vector2Like){
-        const t=this.map.getTileAtWorldXY(x||0,y||0);
+        const t=this.map.getTileAtWorldXY(x||0,y||0,undefined,undefined,"ground");
         if(t==null){
             throw new Error("no tile");
         }
@@ -53,7 +56,7 @@ export class Board{
         
     }
     private getTile({x,y}:Phaser.Types.Math.Vector2Like){
-        const t=this.map.getTileAt(x||0,y||0);
+        const t=this.map.getTileAt(x||0,y||0,undefined,"ground");
         if(t==null){
             throw new Error("no tile");
         }
@@ -62,6 +65,10 @@ export class Board{
     cent({x,y}:Phaser.Types.Math.Vector2Like){
         const t=this.getTile({x,y});
         return new Phaser.Math.Vector2(t.getCenterX(),t.getCenterY());
+    }
+
+    check(v:Phaser.Math.Vector2){
+        return v.x>=0&&v.y>=0&&v.x<this.map.width&&v.y<this.map.height;
     }
 }
 
@@ -97,7 +104,7 @@ export class BoardLike extends BasePhysicsModel{
         super(scene,sprite);
         this.v=new Phaser.Math.Vector2();
     }
-    setUnit({ x, y }: Phaser.Types.Math.Vector2Like): void {
+    setUnit({x,y}:Phaser.Types.Math.Vector2Like){
         super.setUnit({x,y});
         this.v=new Phaser.Math.Vector2(x,y);
     }
@@ -120,7 +127,7 @@ export class Bubble extends BoardLike{
         this.scene.time.addEvent({
             delay:s,
             callback:()=>{
-                this.pop();
+                this.scene.pop(this);
                 this.sprite.destroy();
             }
         });
@@ -157,7 +164,73 @@ export class Bubble extends BoardLike{
                 });
             });
             break;
+        case BType.GREEN:
+            for(let i=0;i<this.scene.board!.map.width;i++){
+                const l=new Explosion(this.scene,EType.O);
+                l.setUnit(new Phaser.Math.Vector2(i,this.v.y));
+                l.activate();
+                this.scene.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            }
+            for(let j=0;j<this.scene.board!.map.height;j++){
+                if(j==this.v.y){
+                    continue;
+                }
+                const l=new Explosion(this.scene,EType.O);
+                l.setUnit(new Phaser.Math.Vector2(this.v.x,j));
+                l.activate();
+                this.scene.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            }
+            break;
+        case BType.BLACK:
+            [Pivot.W,Pivot.S,Pivot.E,Pivot.N].forEach(p=>{
+                const l=new Explosion(this.scene,EType.BLACK);
+                l.setUnit(this.getUnit().add(Player.getBaseVelocity(p)));
+                l.activate();
+                this.scene.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            });
+            break;
+        case BType.PURPLE:
+            for(let i=-2;i<=2;i++){
+                for(let j=-2;j<=2;j++){
+                    if(Math.random()<0.5){
+                        continue;
+                    }
+                    const l=new Explosion(this.scene,EType.RED);
+                    try{
+                        l.setUnit(this.getUnit().add(new Phaser.Math.Vector2(i,j)));
+                    }catch(e){
+                        l.sprite.destroy();
+                        continue;
+                    }
+                    
+                    l.activate();
+                    this.scene.time.addEvent({
+                        delay:500,
+                        callback:()=>{
+                            l.sprite.destroy();
+                        }
+                    });
+                }
+            }
+            break;
+        default:break;
         }
+
     }
 
 }
@@ -168,6 +241,8 @@ export class Explosion extends BoardLike{
         super(scene,scene.physics.add.sprite(0,0,"expl"));
         this.type=type;
         this.sprite.setFrame(type);
+        this.scene.egroup!.add(this.sprite);
+        this.sprite.state=type;
     }
 }
 
