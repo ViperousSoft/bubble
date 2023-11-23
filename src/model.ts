@@ -70,6 +70,10 @@ export class Board{
     check(v:Phaser.Math.Vector2){
         return v.x>=0&&v.y>=0&&v.x<this.map.width&&v.y<this.map.height;
     }
+    has(v:Phaser.Math.Vector2){
+        return this.map.getLayer("box")!.tilemapLayer.hasTileAt(v.x,v.y);
+    }
+
 }
 
 class BasePhysicsModel{
@@ -118,8 +122,6 @@ export class Bubble extends BoardLike{
     constructor(scene:BaseScene,type:BType){
         super(scene,scene.physics.add.sprite(0,0,"bub"));
         this.type=type;
-        //this.sprite.tint=type===BType.RED?0xff0000:type===BType.BLUE?0x0000ff:0x000000;
-
     }
     start(s:number){
         this.activate();
@@ -132,107 +134,6 @@ export class Bubble extends BoardLike{
             }
         });
     }
-    /*pop(){
-        this.scene.sound.play("explode");
-        switch(this.type){
-        case BType.BLUE:
-            for(let i=-1;i<=1;i++){
-                for(let j=-1;j<=1;j++){
-                    const l=new Explosion(this.scene,EType.O);
-                    l.setUnit(this.getUnit().add(new Phaser.Math.Vector2(i,j)));
-                    l.activate();
-                    this.scene.time.addEvent({
-                        delay:500,
-                        callback:()=>{
-                            l.sprite.destroy();
-                        }
-                    });
-
-                }
-            }
-            break;
-        case BType.RED:
-            [Player.getBaseVelocity(Pivot.W),Player.getBaseVelocity(Pivot.E),Player.getBaseVelocity(Pivot.N),Player.getBaseVelocity(Pivot.S),new Phaser.Math.Vector2(0,0)].forEach(v=>{
-                const l=new Explosion(this.scene,EType.RED);
-                l.setUnit(this.getUnit().add(v));
-                l.activate();
-                this.scene.time.addEvent({
-                    delay:500,
-                    callback:()=>{
-                        l.sprite.destroy();
-                    }
-                });
-            });
-            break;
-        case BType.GREEN:
-            for(let i=0;i<this.scene.board!.map.width;i++){
-                const l=new Explosion(this.scene,EType.O);
-                l.setUnit(new Phaser.Math.Vector2(i,this.v.y));
-                l.activate();
-                this.scene.time.addEvent({
-                    delay:500,
-                    callback:()=>{
-                        l.sprite.destroy();
-                    }
-                });
-            }
-            for(let j=0;j<this.scene.board!.map.height;j++){
-                if(j==this.v.y){
-                    continue;
-                }
-                const l=new Explosion(this.scene,EType.O);
-                l.setUnit(new Phaser.Math.Vector2(this.v.x,j));
-                l.activate();
-                this.scene.time.addEvent({
-                    delay:500,
-                    callback:()=>{
-                        l.sprite.destroy();
-                    }
-                });
-            }
-            break;
-        case BType.BLACK:
-            [Pivot.W,Pivot.S,Pivot.E,Pivot.N].forEach(p=>{
-                const l=new Explosion(this.scene,EType.BLACK);
-                l.setUnit(this.getUnit().add(Player.getBaseVelocity(p)));
-                l.activate();
-                this.scene.time.addEvent({
-                    delay:500,
-                    callback:()=>{
-                        l.sprite.destroy();
-                    }
-                });
-            });
-            break;
-        case BType.PURPLE:
-            for(let i=-2;i<=2;i++){
-                for(let j=-2;j<=2;j++){
-                    if(Math.random()<0.5){
-                        continue;
-                    }
-                    const l=new Explosion(this.scene,EType.RED);
-                    try{
-                        l.setUnit(this.getUnit().add(new Phaser.Math.Vector2(i,j)));
-                    }catch(e){
-                        l.sprite.destroy();
-                        continue;
-                    }
-                    
-                    l.activate();
-                    this.scene.time.addEvent({
-                        delay:500,
-                        callback:()=>{
-                            l.sprite.destroy();
-                        }
-                    });
-                }
-            }
-            break;
-        default:break;
-        }
-
-    }*/
-
 }
 
 export class Explosion extends BoardLike{

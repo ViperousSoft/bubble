@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import {Keyboard} from "./ctrl";
 import {Bubble,Boy,Board,Terrain,BType,Pivot,BoxType,EType,Explosion,Player} from "./model";
-import {iterateX,iterateO, iterateH} from "./utils";
+import {iterateX,iterateO,iterateH} from "./utils";
 import bub from "../assets/bubble.png";
 import boy from "../assets/boy.png";
 import girl from "../assets/girl.png";
@@ -10,6 +10,7 @@ import expl from "../assets/explosion.png";
 import box from "../assets/boxes.png";
 import loon from "../assets/Laura Shigihara - Loonboon.mp3";
 import explode from "../assets/explosion.wav";
+import grass from "../assets/Grass.bmp";
 
 
 export class BaseScene extends Phaser.Scene{
@@ -18,6 +19,20 @@ export class BaseScene extends Phaser.Scene{
     egroup?:Phaser.Physics.Arcade.Group;
     
     preload(){
+        const g=this.add.graphics();
+        const w=200,h=20;
+        const x=(this.game.canvas.width-w)/2,y=(this.game.canvas.height-h)/2;
+        //g.clear();
+        g.lineStyle(5,0xffffff);
+        g.fillStyle(0xffffff);
+        g.strokeRect(x,y,w,h);
+        this.load.on("progress",(v:number)=>{
+            //g.clear();
+            g.fillRect(x,y,Math.round(w*v),h);
+        });
+        this.load.on("complete",()=>{
+            g.destroy();
+        });
         this.load.spritesheet("bub",bub,{frameWidth:46,frameHeight:46});
         this.load.spritesheet("boy",boy,{frameWidth:48,frameHeight:60});
         this.load.spritesheet("girl",girl,{frameWidth:48,frameHeight:60});
@@ -372,7 +387,6 @@ export class S extends BaseScene{
             });
             break;
         case BType.PURPLE:
-            
             iterateO(1,1,v=>{
                 const x=b.getUnit().add(v);
                 if(!this.board!.check(x))return;
@@ -390,5 +404,28 @@ export class S extends BaseScene{
             break;
         default:break;
         }
+    }
+}
+
+export class Start extends Phaser.Scene{
+    preload(){
+        this.load.image("grass",grass);
+    }
+    create(){
+        this.add.tileSprite(0,0,800,800,"grass").setOrigin(0,0);
+        const b=this.add.rectangle(400,400,200,100,0xff0000).setInteractive();
+        const t=this.add.text(400,400,"start").setOrigin(0.5,0.5);
+        
+        b.on("pointerover",()=>{
+            b.setFillStyle(0x00ff00);
+            t.setColor("#000000");
+        });
+        b.on("pointerout",()=>{
+            b.setFillStyle(0xff0000);
+            t.setColor("#ffffff");
+        });
+        b.on("pointerdown",()=>{
+            this.scene.start("S");
+        });
     }
 }
