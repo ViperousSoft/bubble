@@ -52,3 +52,12 @@ export function iterateX(a:number,f:(v:Phaser.Math.Vector2)=>void){
     f(new Phaser.Math.Vector2(-a,0));
     f(new Phaser.Math.Vector2(a,0));
 }
+export function iterateO(a:number,b:number,f:(v:Phaser.Math.Vector2)=>void){
+    a=Math.abs(a);
+    b=Math.abs(b);
+    for(let i=-a;i<=a;i++){
+        for(let j=-b;j<=b;j++){
+            f(new Phaser.Math.Vector2(i,j));
+        }
+    }
+}

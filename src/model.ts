@@ -132,7 +132,7 @@ export class Bubble extends BoardLike{
             }
         });
     }
-    pop(){
+    /*pop(){
         this.scene.sound.play("explode");
         switch(this.type){
         case BType.BLUE:
@@ -231,7 +231,7 @@ export class Bubble extends BoardLike{
         default:break;
         }
 
-    }
+    }*/
 
 }
 

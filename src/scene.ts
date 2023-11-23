@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import {Keyboard} from "./ctrl";
 import {Bubble,Boy,Board,Terrain,BType,Pivot,BoxType,EType,Explosion,Player} from "./model";
-import {iterateX} from "./utils";
+import {iterateX,iterateO, iterateH} from "./utils";
 import bub from "../assets/bubble.png";
 import boy from "../assets/boy.png";
 import girl from "../assets/girl.png";
@@ -16,10 +16,7 @@ export class BaseScene extends Phaser.Scene{
     board?:Board;
     keyboard?:Keyboard;
     egroup?:Phaser.Physics.Arcade.Group;
-    constructor(){
-        super("BaseScene");
-        
-    }
+    
     preload(){
         this.load.spritesheet("bub",bub,{frameWidth:46,frameHeight:46});
         this.load.spritesheet("boy",boy,{frameWidth:48,frameHeight:60});
@@ -27,7 +24,6 @@ export class BaseScene extends Phaser.Scene{
         this.load.spritesheet("block",blk,{frameWidth:40,frameHeight:40});
         this.load.spritesheet("expl",expl,{frameWidth:40,frameHeight:40});
         this.load.spritesheet("box",box,{frameWidth:40,frameHeight:40});
-        //this.load.image("expl",expl);
         this.load.audio("bgm",loon);
         this.load.audio("explode",explode);
     }
@@ -119,114 +115,7 @@ export class BaseScene extends Phaser.Scene{
         this.egroup=this.physics.add.group();
     }
     pop(b:Bubble){
-        this.sound.play("explode");
-        switch(b.type){
-        case BType.BLUE:
-            for(let i=-1;i<=1;i++){
-                for(let j=-1;j<=1;j++){
-                    const l=new Explosion(this,EType.O);
-                    l.setUnit(b.getUnit().add(new Phaser.Math.Vector2(i,j)));
-                    l.activate();
-                    this.time.addEvent({
-                        delay:500,
-                        callback:()=>{
-                            l.sprite.destroy();
-                        }
-                    });
-
-                }
-            }
-            break;
-        case BType.RED:
-            [Player.getBaseVelocity(Pivot.W),Player.getBaseVelocity(Pivot.E),Player.getBaseVelocity(Pivot.N),Player.getBaseVelocity(Pivot.S),new Phaser.Math.Vector2(0,0)].forEach(v=>{
-                const l=new Explosion(this,EType.RED);
-                l.setUnit(b.getUnit().add(v));
-                l.activate();
-                this.time.addEvent({
-                    delay:500,
-                    callback:()=>{
-                        l.sprite.destroy();
-                    }
-                });
-            });
-            break;
-        case BType.GREEN:
-            for(let i=0;i<this.board!.map.width;i++){
-                const l=new Explosion(this,EType.O);
-                l.setUnit(new Phaser.Math.Vector2(i,b.getUnit().y));
-                l.activate();
-                this.time.addEvent({
-                    delay:500,
-                    callback:()=>{
-                        l.sprite.destroy();
-                    }
-                });
-            }
-            for(let j=0;j<this.board!.map.height;j++){
-                if(j==b.getUnit().y){
-                    continue;
-                }
-                const l=new Explosion(this,EType.O);
-                l.setUnit(new Phaser.Math.Vector2(b.getUnit().x,j));
-                l.activate();
-                this.time.addEvent({
-                    delay:500,
-                    callback:()=>{
-                        l.sprite.destroy();
-                    }
-                });
-            }
-            break;
-        case BType.BLACK:
-            [Pivot.W,Pivot.S,Pivot.E,Pivot.N].forEach(p=>{
-                const l=new Explosion(this,EType.BLACK);
-                l.setUnit(b.getUnit().add(Player.getBaseVelocity(p)));
-                l.activate();
-                this.time.addEvent({
-                    delay:500,
-                    callback:()=>{
-                        l.sprite.destroy();
-                    }
-                });
-            });
-            break;
-        case BType.PURPLE:
-            iterateX(2,(v)=>{
-                const l=new Explosion(this,EType.O);
-                l.setUnit(b.getUnit().add(v));
-                l.activate();
-                this.time.addEvent({
-                    delay:500,
-                    callback:()=>{
-                        l.sprite.destroy();
-                    }
-                });
-            });
-            /*for(let i=-2;i<=2;i++){
-                for(let j=-2;j<=2;j++){
-                    if(Math.random()<0.5){
-                        continue;
-                    }
-                    const l=new Explosion(this,EType.RED);
-                    try{
-                        l.setUnit(b.getUnit().add(new Phaser.Math.Vector2(i,j)));
-                    }catch(e){
-                        l.sprite.destroy();
-                        continue;
-                    }
-                    
-                    l.activate();
-                    this.time.addEvent({
-                        delay:500,
-                        callback:()=>{
-                            l.sprite.destroy();
-                        }
-                    });
-                }
-            }*/
-            break;
-        default:break;
-        }
+        throw new Error("not implemented");
     }
 }
 
@@ -324,69 +213,54 @@ export class S extends BaseScene{
             a=a as Phaser.Tilemaps.Tile;
             b=b as Phaser.Types.Physics.Arcade.GameObjectWithBody;
             
-            //console.log((b as any).index);
             switch(a.index){
             case BoxType.O:
                 bo.putTileAt(-1,a.x,a.y);
-                //bo.putTileAt()
-                //a.index=-1;
                 break;
             case BoxType.N:
                 if(b.state===EType.O){
-                    //bo.fill(BoxType.O,a.x,a.y,1,1);
                     bo.putTileAt(BoxType.O,a.x,a.y);
-                    //a.index=BoxType.O;
                 }
                 else{
-                    bo.fill(-1,a.x,a.y,1,1);
-                    //bo.putTileAt(-1,a.x,a.y);
-                    //a.index=-1;
+                    bo.putTileAt(-1,a.x,a.y);
                 }
                 break;
             case BoxType.SILVER:
                 if(b.state===EType.O){
-                    //a.index=BoxType.N;
                     bo.putTileAt(BoxType.N,a.x,a.y);
                 }
                 else if(b.state===EType.RED){
-                    //a.index=BoxType.O;
                     bo.putTileAt(BoxType.O,a.x,a.y);
                 }
                 else{
-                    //a.index=-1;
                     bo.putTileAt(-1,a.x,a.y);
                 }
                 break;
             case BoxType.BLUE:
-                //a.index=-1;
                 bo.putTileAt(-1,a.x,a.y);
                 const x=new Bubble(this,BType.BLUE);
                 x.setUnit(a);
                 x.start(2000);
                 break;
             case BoxType.RED:
-                //a.index=-1;
                 bo.putTileAt(-1,a.x,a.y);
                 const y=new Bubble(this,BType.RED);
                 y.setUnit(a);
                 y.start(2000);
                 break;
             case BoxType.BLACK:
-                //a.index=-1;
                 bo.putTileAt(-1,a.x,a.y);
                 const z=new Bubble(this,BType.BLACK);
                 z.setUnit(a);
                 z.start(2000);
                 break;
             case BoxType.GREEN:
-                //a.index=-1;
                 bo.putTileAt(-1,a.x,a.y);
                 const w=new Bubble(this,BType.GREEN);
                 w.setUnit(a);
                 w.start(2000);
                 break;
             case BoxType.PURPLE:
-                //a.index=-1;
                 bo.putTileAt(-1,a.x,a.y);
                 const v=new Bubble(this,BType.PURPLE);
                 v.setUnit(a);
@@ -394,18 +268,127 @@ export class S extends BaseScene{
                 break;
             case BoxType.DARK:
                 if(b.state===EType.RED||b.state===EType.BLACK){
-                    //a.index=-1;
                     bo.putTileAt(-1,a.x,a.y);
                 }
                 break;
             default:break;
             }
-            //a.resetCollision();
         });
         this.egroup!.children.iterate((c)=>{
             this.physics.world.disable(c);
             return true;
         });
-        //this.board!.map.setCollisionByExclusion([-1]);
+    }
+    pop(b:Bubble){
+        this.sound.play("explode");
+        switch(b.type){
+        case BType.BLUE:
+            for(let i=0;i<=2;i++){
+                iterateX(i,v=>{
+                    const x=b.getUnit().add(v);
+                    if(!this.board!.check(x))return;
+                    const l=new Explosion(this,EType.O);
+                    l.setUnit(x);
+                    l.activate();
+                    this.time.addEvent({
+                        delay:500,
+                        callback:()=>{
+                            l.sprite.destroy();
+                        }
+                    });
+                });
+            }
+            break;
+        case BType.RED:
+            for(let i=0;i<=1;i++){
+                iterateX(i,v=>{
+                    const x=b.getUnit().add(v);
+                    if(!this.board!.check(x))return;
+                    const l=new Explosion(this,EType.RED);
+                    l.setUnit(x);
+                    l.activate();
+                    this.time.addEvent({
+                        delay:500,
+                        callback:()=>{
+                            l.sprite.destroy();
+                        }
+                    });
+                });
+            }
+            iterateH(1,1,v=>{
+                const x=b.getUnit().add(v);
+                if(!this.board!.check(x))return;
+                const l=new Explosion(this,EType.O);
+                l.setUnit(x);
+                l.activate();
+                this.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            });
+            break;
+        case BType.GREEN:
+            for(let i=0;i<this.board!.map.width;i++){
+                const l=new Explosion(this,EType.O);
+                l.setUnit(new Phaser.Math.Vector2(i,b.getUnit().y));
+                l.activate();
+                this.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            }
+            for(let j=0;j<this.board!.map.height;j++){
+                if(j==b.getUnit().y){
+                    continue;
+                }
+                const l=new Explosion(this,EType.O);
+                l.setUnit(new Phaser.Math.Vector2(b.getUnit().x,j));
+                l.activate();
+                this.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            }
+            break;
+        case BType.BLACK:
+            iterateX(1,v=>{
+                const x=b.getUnit().add(v);
+                if(!this.board!.check(x))return;
+                const l=new Explosion(this,EType.BLACK);
+                l.setUnit(x);
+                l.activate();
+                this.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            });
+            break;
+        case BType.PURPLE:
+            
+            iterateO(1,1,v=>{
+                const x=b.getUnit().add(v);
+                if(!this.board!.check(x))return;
+                if(!this.board!.map.getLayer("box")!.tilemapLayer.hasTileAt(x.x,x.y))return;
+                const l=new Explosion(this,EType.RED);
+                l.setUnit(x);
+                l.activate();
+                this.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            });
+            break;
+        default:break;
+        }
     }
 }
