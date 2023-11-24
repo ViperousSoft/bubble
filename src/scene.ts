@@ -136,11 +136,16 @@ export class BaseScene extends Phaser.Scene{
 
 export class S extends BaseScene{
     boy?:Boy;
+    score!:number;
+    text!:Phaser.GameObjects.Text;
+    init(){
+        this.game.scale.resize(800,600);
+    }
     create(){
         super.create();
         const w=40,h=40;
         this.board=new Board(this,w,h);
-        
+
         const l=this.board!.map.createBlankLayer("ground","block",0,0,w,h)!;
         l.fill(Terrain.EMPTY,0,0,w,h);
         l.fill(Terrain.TREE,0,0,w,1);
@@ -174,8 +179,6 @@ export class S extends BaseScene{
                     else{
                         s.putTileAt(BoxType.SILVER,i,j);
                     }
-                    
-                    //s.fill(Math.random()<0.3?BoxType.BLACK:BoxType.GREEN,i,j,1,1);
                 }
 
             }
@@ -184,15 +187,17 @@ export class S extends BaseScene{
 
         this.boy=new Boy(this);
         
-        //new Bubble(this,0).start(3000);
-        //this.boy.setPosition({x:200,y:200});
+        this.score=0;
+        this.add.rectangle(600,0,200,600,0x555555).setOrigin(0,0).setScrollFactor(0).setDepth(1);
+        this.text=this.add.text(700,100,"score:0").setOrigin(0.5,0.5).setColor("#fff000").setFontSize(20).setScrollFactor(0).setDepth(2);
+
         this.boy.setUnit({x:10,y:10});
         this.boy.activate();
         this.boy.sprite.body.setSize(10,10,false);
         this.boy.sprite.body.setOffset(19,45);
         this.physics.add.collider(this.boy.sprite,l);
         this.physics.add.collider(this.boy.sprite,s);
-        this.cameras.main.startFollow(this.boy.sprite).setBounds(0,0,this.board.map.widthInPixels,this.board.map.heightInPixels);
+        this.cameras.main.startFollow(this.boy.sprite,true,1,1,-100,0).setBounds(0,0,this.board.map.widthInPixels+200,this.board.map.heightInPixels);
         this.sound.play("bgm",{loop:true});
     }
     update(time: number, delta: number){
@@ -222,7 +227,19 @@ export class S extends BaseScene{
             a=a as Phaser.Types.Physics.Arcade.GameObjectWithBody;
             b=b as Phaser.Types.Physics.Arcade.GameObjectWithBody;
 
-            console.log(b.state);
+            //console.log(b.state);
+            switch(b.state){
+            case EType.O:
+                this.upd(-1);
+                break;
+            case EType.RED:
+                this.upd(-2);
+                break;
+            case EType.BLACK:
+                this.upd(-3);
+                break;
+            default:break;
+            }
         });
         this.physics.overlap(bo,this.egroup!,(b,a)=>{
             a=a as Phaser.Tilemaps.Tile;
@@ -231,6 +248,7 @@ export class S extends BaseScene{
             switch(a.index){
             case BoxType.O:
                 bo.putTileAt(-1,a.x,a.y);
+                this.upd(1);
                 break;
             case BoxType.N:
                 if(b.state===EType.O){
@@ -238,6 +256,7 @@ export class S extends BaseScene{
                 }
                 else{
                     bo.putTileAt(-1,a.x,a.y);
+                    this.upd(1);
                 }
                 break;
             case BoxType.SILVER:
@@ -249,34 +268,40 @@ export class S extends BaseScene{
                 }
                 else{
                     bo.putTileAt(-1,a.x,a.y);
+                    this.upd(1);
                 }
                 break;
             case BoxType.BLUE:
                 bo.putTileAt(-1,a.x,a.y);
+                this.upd(1);
                 const x=new Bubble(this,BType.BLUE);
                 x.setUnit(a);
                 x.start(2000);
                 break;
             case BoxType.RED:
                 bo.putTileAt(-1,a.x,a.y);
+                this.upd(1);
                 const y=new Bubble(this,BType.RED);
                 y.setUnit(a);
                 y.start(2000);
                 break;
             case BoxType.BLACK:
                 bo.putTileAt(-1,a.x,a.y);
+                this.upd(1);
                 const z=new Bubble(this,BType.BLACK);
                 z.setUnit(a);
                 z.start(2000);
                 break;
             case BoxType.GREEN:
                 bo.putTileAt(-1,a.x,a.y);
+                this.upd(1);
                 const w=new Bubble(this,BType.GREEN);
                 w.setUnit(a);
                 w.start(2000);
                 break;
             case BoxType.PURPLE:
                 bo.putTileAt(-1,a.x,a.y);
+                this.upd(1);
                 const v=new Bubble(this,BType.PURPLE);
                 v.setUnit(a);
                 v.start(2000);
@@ -284,7 +309,12 @@ export class S extends BaseScene{
             case BoxType.DARK:
                 if(b.state===EType.RED||b.state===EType.BLACK){
                     bo.putTileAt(-1,a.x,a.y);
+                    this.upd(1);
                 }
+                break;
+            case BoxType.GOLD:
+                bo.putTileAt(-1,a.x,a.y);
+                this.upd(2);
                 break;
             default:break;
             }
@@ -404,6 +434,10 @@ export class S extends BaseScene{
             break;
         default:break;
         }
+    }
+    upd(x:number){
+        this.score+=x;
+        this.text.setText(`score:${this.score}`);
     }
 }
 

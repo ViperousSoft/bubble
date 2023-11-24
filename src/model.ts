@@ -27,7 +27,9 @@ export enum BoxType{
     BLUE,
     BLACK,
     SILVER,
-    DARK
+    DARK,
+    GOLD,
+    MAN
 }
 
 export class Board{

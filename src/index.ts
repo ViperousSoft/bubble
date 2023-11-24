@@ -10,5 +10,8 @@ const game=new Phaser.Game({
         arcade:{
             debug:false,
         }
+    },
+    scale:{
+        mode:Phaser.Scale.NONE
     }
 });
