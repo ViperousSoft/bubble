@@ -1,10 +1,10 @@
 import Phaser from "phaser";
-import {S,Start} from "./scene";
+import {Start} from "./scene";
 
-const game=new Phaser.Game({
+new Phaser.Game({
     width:800,
     height:800,
-    scene:[new Start(),new S("S")],
+    scene:new Start("start"),
     physics:{
         default:"arcade",
         arcade:{

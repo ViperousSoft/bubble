@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import {Keyboard} from "./ctrl";
-import {Bubble,Boy,Board,Terrain,BType,Pivot,BoxType,EType,Explosion,Player} from "./model";
+import {Bubble,Boy,Board,Terrain,BType,Pivot,BoxType,EType,Explosion,Bar,Button} from "./model";
 import {iterateX,iterateO,iterateH} from "./utils";
 import bub from "../assets/bubble.png";
 import boy from "../assets/boy.png";
@@ -13,25 +13,30 @@ import explode from "../assets/explosion.wav";
 import grass from "../assets/Grass.bmp";
 
 
-export class BaseScene extends Phaser.Scene{
+export abstract class BaseScene extends Phaser.Scene{
     board?:Board;
     keyboard?:Keyboard;
     egroup?:Phaser.Physics.Arcade.Group;
-    
+    start:Start;
+    constructor(s:Start,c?:string){
+        super(c);
+        this.start=s;
+    }
     preload(){
-        const g=this.add.graphics();
+        const b=new Bar(this);
         const w=200,h=20;
         const x=(this.game.canvas.width-w)/2,y=(this.game.canvas.height-h)/2;
-        //g.clear();
-        g.lineStyle(5,0xffffff);
-        g.fillStyle(0xffffff);
-        g.strokeRect(x,y,w,h);
+        b.setColor(0xffffff);
+        b.setSize(w,h);
+        b.setPosition(x,y);
+        b.setLineWidth(5);
+        b.activate();
+        
         this.load.on("progress",(v:number)=>{
-            //g.clear();
-            g.fillRect(x,y,Math.round(w*v),h);
+            b.setCur(v);
         });
         this.load.on("complete",()=>{
-            g.destroy();
+            b.destroy();
         });
         this.load.spritesheet("bub",bub,{frameWidth:46,frameHeight:46});
         this.load.spritesheet("boy",boy,{frameWidth:48,frameHeight:60});
@@ -129,22 +134,113 @@ export class BaseScene extends Phaser.Scene{
         this.keyboard=new Keyboard(this);
         this.egroup=this.physics.add.group();
     }
-    pop(b:Bubble){
-        throw new Error("not implemented");
+    abstract pop(b:Bubble):void;
+}
+
+export class SBoard extends Phaser.Scene{
+    b!:Bar;
+    max:number;
+    constructor(m:number,c?:string){
+        super(c);
+        this.max=m;
+    }
+    preload(){
+        this.load.image("grass",grass);
+    }
+    create(){
+        this.add.tileSprite(0,0,200,600,"grass").setOrigin(0,0);
+        const t=this.add.text(100,100,"0").setOrigin(0.5,0.5).setColor("#fff000").setFontSize(20);
+        this.b=new Bar(this);
+        
+        this.b.setColor(0xffffff);
+        this.b.setPosition(50,200);
+        this.b.setMax(this.max);
+        this.b.setLineWidth(2);
+        this.b.setSize(100,20);
+        this.b.activate();
+        this.events.on("score",(v:number)=>{
+            t.setText(v.toString());
+        });
+        this.events.on("time",(v:number)=>{
+            this.b.setCur(v);
+        });
+        
+        const b=new Button(this,()=>{
+            this.events.emit("p");
+        });
+        b.outBack=0xff0000;
+        b.outText="#ffffff";
+        b.overBack=0x00ff00;
+        b.overText="#000000";
+        b.setText("Pause");
+        b.setPosition(50,300);
+        b.setSize(100,50);
+        //b.setDepth(1);
+        b.activate();
+        
+    }
+}
+
+class SGO extends Phaser.Scene{
+    score!:number;
+    //onMenu:()=>void;
+    start:Start;
+    constructor(n:number,s:Start,c?:string){
+        super(c);
+        this.score=n;
+        this.start=s;
+    }
+    init(){
+        const w=400,h=450;
+        const x=(this.game.canvas.width-w)/2,y=(this.game.canvas.height-h)/2;
+        this.cameras.main.setViewport(x,y,w,h);
+        this.cameras.main.setBackgroundColor("rgba(255,0,0,0.5)");
+    }
+    create(){
+        this.add.text(200,100,"GAME OVER").setOrigin(0.5,0.5).setFontSize(30);
+        this.add.text(200,200,`Score: ${this.score}`).setOrigin(0.5,0.5);
+        const b=new Button(this,()=>{
+            this.scene.wake(this.start);
+            this.start.clear();
+            this.scene.stop(this).remove(this);
+        });
+        b.outBack=0xff0000;
+        b.outText="#ffffff";
+        b.overBack=0x00ff00;
+        b.overText="#000000";
+        b.setText("Main Menu");
+        b.setPosition(100,250);
+        b.setSize(200,100);
+        b.setDepth(1);
+        b.activate();
     }
 }
 
 export class S extends BaseScene{
     boy?:Boy;
     score!:number;
-    text!:Phaser.GameObjects.Text;
+    tim!:number;
+    //text!:Phaser.GameObjects.Text;
+    //t!:Bar;
+    s!:SBoard;
     init(){
-        this.game.scale.resize(800,600);
+        this.scale.resize(800,600);
     }
     create(){
         super.create();
-        const w=40,h=40;
+        const w=20,h=20;
         this.board=new Board(this,w,h);
+        this.tim=180000;
+        this.s=new SBoard(this.tim,"s");
+        this.scene.add("s",this.s,true);
+        
+        this.start.main.push(this,this.s);
+        this.s.events.on("p",()=>{
+            this.scene.wake("pause");
+            this.scene.bringToTop("pause");
+            this.start.pause();
+            //console.log("fdfdfs");
+        });
 
         const l=this.board!.map.createBlankLayer("ground","block",0,0,w,h)!;
         l.fill(Terrain.EMPTY,0,0,w,h);
@@ -188,19 +284,28 @@ export class S extends BaseScene{
         this.boy=new Boy(this);
         
         this.score=0;
-        this.add.rectangle(600,0,200,600,0x555555).setOrigin(0,0).setScrollFactor(0).setDepth(1);
-        this.text=this.add.text(700,100,"score:0").setOrigin(0.5,0.5).setColor("#fff000").setFontSize(20).setScrollFactor(0).setDepth(2);
-
+        
         this.boy.setUnit({x:10,y:10});
         this.boy.activate();
         this.boy.sprite.body.setSize(10,10,false);
         this.boy.sprite.body.setOffset(19,45);
         this.physics.add.collider(this.boy.sprite,l);
         this.physics.add.collider(this.boy.sprite,s);
-        this.cameras.main.startFollow(this.boy.sprite,true,1,1,-100,0).setBounds(0,0,this.board.map.widthInPixels+200,this.board.map.heightInPixels);
+
+        this.cameras.main.setViewport(0,0,600,600);
+        this.s.cameras.main.setViewport(600,0,200,600);
+        this.cameras.main.startFollow(this.boy.sprite).setBounds(0,0,this.board.map.widthInPixels,this.board.map.heightInPixels);
         this.sound.play("bgm",{loop:true});
     }
     update(time: number, delta: number){
+        this.tim=Math.max(0,this.tim-delta);
+        this.s.events.emit("time",this.tim);
+        if(this.tim==0){
+            const p=new SGO(this.score,this.start);
+            this.start.pause();
+            this.scene.add("go",p,true);
+            return;
+        }
         const bo=this.board!.map.getLayer("box")!.tilemapLayer;
         if(this.keyboard!.A.isDown){
             this.boy!.start(Pivot.W);
@@ -224,9 +329,16 @@ export class S extends BaseScene{
             this.boy!.bubble(BType.RED);
         }
         this.physics.overlap(this.boy!.sprite,this.egroup!,(a,b)=>{
+            if(this.boy!.no)return;
             a=a as Phaser.Types.Physics.Arcade.GameObjectWithBody;
             b=b as Phaser.Types.Physics.Arcade.GameObjectWithBody;
-
+            this.boy!.setNo(true);
+            this.time.addEvent({
+                delay:1000,
+                callback:()=>{
+                    this.boy!.setNo(false);
+                }
+            });
             //console.log(b.state);
             switch(b.state){
             case EType.O:
@@ -420,7 +532,7 @@ export class S extends BaseScene{
             iterateO(1,1,v=>{
                 const x=b.getUnit().add(v);
                 if(!this.board!.check(x))return;
-                if(!this.board!.map.getLayer("box")!.tilemapLayer.hasTileAt(x.x,x.y))return;
+                if(!this.board!.has(x))return;
                 const l=new Explosion(this,EType.RED);
                 l.setUnit(x);
                 l.activate();
@@ -436,30 +548,93 @@ export class S extends BaseScene{
         }
     }
     upd(x:number){
-        this.score+=x;
-        this.text.setText(`score:${this.score}`);
+        this.s.events.emit("score",this.score+=x);
+        
     }
 }
 
 export class Start extends Phaser.Scene{
+    main:Phaser.Scene[];
+    constructor(c?:string){
+        super(c);
+        this.main=[];
+    }
+    init(){
+        this.scene.add("pause",new Pause(this,"pause"),true);
+    }
     preload(){
         this.load.image("grass",grass);
     }
     create(){
         this.add.tileSprite(0,0,800,800,"grass").setOrigin(0,0);
-        const b=this.add.rectangle(400,400,200,100,0xff0000).setInteractive();
-        const t=this.add.text(400,400,"start").setOrigin(0.5,0.5);
+        const b=new Button(this,()=>{
+            this.scene.add("S",new S(this,"S"),true);
+            this.scene.sleep(this);
+        });
+        b.outBack=0xff0000;
+        b.outText="#ffffff";
+        b.overBack=0x00ff00;
+        b.overText="#000000";
+        b.setText("Start");
+        b.setPosition(300,350);
+        b.setSize(200,100);
+        b.setDepth(1);
+        b.activate();
         
-        b.on("pointerover",()=>{
-            b.setFillStyle(0x00ff00);
-            t.setColor("#000000");
-        });
-        b.on("pointerout",()=>{
-            b.setFillStyle(0xff0000);
-            t.setColor("#ffffff");
-        });
-        b.on("pointerdown",()=>{
-            this.scene.start("S");
+    }
+    pause(){
+        this.main.forEach(s=>{
+            this.scene.pause(s);
         });
     }
+    resume(){
+        this.main.forEach(s=>{
+            this.scene.resume(s);
+        });
+    }
+    clear(){
+        this.main.forEach(s=>{
+            this.scene.stop(s);
+            this.scene.remove(s);
+        });
+        this.main.splice(0,this.main.length);
+    }
+}
+
+export class Pause extends Phaser.Scene{
+    start:Start;
+    constructor(s:Start,c?:string){
+        super(c);
+        this.start=s;
+    }
+    init(){
+        const w=400,h=400;
+        
+        this.cameras.main.setBackgroundColor("rgba(255,0,0,0.5)");
+        this.scene.sleep(this);
+        this.events.on("wake",()=>{
+            const x=(this.scale.gameSize.width-w)/2,y=(this.scale.gameSize.height-h)/2;
+            console.log(this.scale.gameSize);
+            console.log(this.scale.baseSize);
+            console.log(this.scale.displaySize);
+            this.cameras.main.setViewport(x,y,w,h);
+        });
+    }
+    create(){
+        this.add.text(200,200,"PAUSED").setOrigin(0.5,0.5);
+        const b=new Button(this,()=>{
+            this.start.resume();
+            this.scene.sleep(this);
+        });
+        b.outBack=0xff0000;
+        b.outText="#ffffff";
+        b.overBack=0x00ff00;
+        b.overText="#000000";
+        b.setText("Resume");
+        b.setPosition(150,300);
+        b.setSize(100,50);
+        b.setDepth(1);
+        b.activate();
+    }
+    
 }

@@ -32,6 +32,134 @@ export enum BoxType{
     MAN
 }
 
+export class Bar{
+    scene:Phaser.Scene;
+    border:Phaser.GameObjects.Rectangle;
+    fill:Phaser.GameObjects.Rectangle;
+    max:number;
+    cur:number;
+    constructor(scene:Phaser.Scene){
+        this.scene=scene;
+        this.border=scene.add.rectangle().setScrollFactor(0).setOrigin(0,0);
+        this.fill=scene.add.rectangle().setScrollFactor(0).setOrigin(0,0);
+        this.deactivate();
+        this.max=1;
+        this.cur=0;
+        this.setDepth(0);
+    }
+    setPosition(x:number,y:number){
+        this.border.setPosition(x,y);
+        this.fill.setPosition(x,y);
+    }
+    setSize(w:number,h:number){
+        this.border.setSize(w,h);
+        this.fill.setSize(w,h);
+        this.upd();
+    }
+    setColor(c:number){
+        this.border.setStrokeStyle(this.border.lineWidth,c);
+        this.fill.setFillStyle(c);
+    }
+    setBackColor(c?:number,a?:number){
+        this.border.setFillStyle(c,a);
+    }
+    setLineWidth(w:number){
+        this.border.setStrokeStyle(w,this.border.strokeColor);
+    }
+    setDepth(v:number){
+        this.border.setDepth(v);
+        this.fill.setDepth(v+1);
+    }
+    activate(){
+        this.border.setActive(true).setVisible(true);
+        this.fill.setActive(true).setVisible(true);
+    }
+    deactivate(){
+        this.border.setActive(false).setVisible(false);
+        this.fill.setActive(false).setVisible(false);
+    }
+    setMax(m:number){
+        this.max=m;
+        this.upd();
+    }
+    setCur(c:number){
+        this.cur=c;
+        this.upd();
+    }
+    destroy(){
+        this.border.destroy();
+        this.fill.destroy();
+    }
+    private upd(){
+        this.fill.setSize(Math.round(this.border.width*this.cur/this.max),this.border.height);
+    }
+}
+
+export class Plate{
+    scene:BaseScene;
+    border:Phaser.GameObjects.Arc;
+    fill:Phaser.GameObjects.Arc;
+    max:number;
+    cur:number;
+    constructor(scene:BaseScene){
+        this.scene=scene;
+        this.border=scene.add.arc().setScrollFactor(0);
+        this.fill=scene.add.arc().setScrollFactor(0);
+        this.deactivate();
+        this.max=1;
+        this.cur=0;
+        this.setDepth(0);
+    }
+    setPosition(x:number,y:number){
+        this.border.setPosition(x,y);
+        this.fill.setPosition(x,y);
+    }
+    setSize(r:number){
+        this.border.setRadius(r);
+        this.fill.setRadius(r);
+        this.upd();
+    }
+    setColor(c:number){
+        this.border.setStrokeStyle(this.border.lineWidth,c);
+        this.fill.setFillStyle(c);
+    }
+    setBackColor(c?:number,a?:number){
+        this.border.setFillStyle(c,a);
+    }
+    setLineWidth(w:number){
+        this.border.setStrokeStyle(w,this.border.strokeColor);
+    }
+    setDepth(v:number){
+        this.border.setDepth(v);
+        this.fill.setDepth(v+1);
+    }
+    activate(){
+        this.border.setActive(true).setVisible(true);
+        this.fill.setActive(true).setVisible(true);
+    }
+    deactivate(){
+        this.border.setActive(false).setVisible(false);
+        this.fill.setActive(false).setVisible(false);
+    }
+    setMax(m:number){
+        this.max=m;
+        this.upd();
+    }
+    setCur(c:number){
+        this.cur=c;
+        this.upd();
+    }
+    destroy(){
+        this.border.destroy();
+        this.fill.destroy();
+    }
+    private upd(){
+        const t=360*this.cur/this.max;
+        this.fill.setStartAngle(t*2);
+        this.fill.setEndAngle(t*3);
+    }
+}
+
 export class Board{
     scene:BaseScene;
     map:Phaser.Tilemaps.Tilemap;
@@ -165,7 +293,7 @@ export class Player extends BasePhysicsModel{
         this.walking=false;
     }
     getBaseVelocity(){
-        return Player.baseVelocity[this.pivot].clone();
+        return Player.getBaseVelocity(this.pivot);
     }
     static getBaseVelocity(p:Pivot){
         return Player.baseVelocity[p].clone();
@@ -180,9 +308,20 @@ export class Player extends BasePhysicsModel{
 
 export class Boy extends Player{
     cd:boolean[];
+    no:boolean;
+    blink:Phaser.Time.TimerEvent;
     constructor(scene:BaseScene){
         super(scene,scene.physics.add.sprite(0,0,"boy"));
         this.cd=[true,true,true];
+        this.no=false;
+        this.blink=scene.time.addEvent({
+            delay:100,
+            loop:true,
+            paused:true,
+            callback:()=>{
+                this.sprite.setVisible(!this.sprite.visible);
+            }
+        });
     }
     
     start(pivot:Pivot){
@@ -220,5 +359,84 @@ export class Boy extends Player{
             });
         }
     }
+    setNo(v:boolean){
+        if(this.no===v){
+            return;
+        }
+        this.no=v;
+        if(v){
+            this.blink.paused=false;
+        }
+        else{
+            this.blink.paused=true;
+            this.sprite.setVisible(true);
+        }
+    }
 }
 
+export interface UI{
+    scene:Phaser.Scene;
+    setPosition:(x:number,y:number)=>void;
+    setSize:(w:number,h:number)=>void;
+    setDepth:(v:number)=>void;
+    activate:()=>void;
+    deactivate:()=>void;
+}
+
+export class Button implements UI{
+    scene:Phaser.Scene;
+    text:Phaser.GameObjects.Text;
+    rect:Phaser.GameObjects.Rectangle;
+    overBack:number;
+    overText:string;
+    outBack:number;
+    outText:string;
+    constructor(scene:Phaser.Scene,onClick:()=>void){
+        this.scene=scene;
+        this.overBack=0x888888;
+        this.overText="#ffffff";
+        this.outBack=0x555555;
+        this.outText="#ffffff";
+        this.text=scene.add.text(0,0,"").setOrigin(0.5,0.5).setScrollFactor(0);
+        this.rect=scene.add.rectangle().setOrigin(0,0).setScrollFactor(0).setInteractive();
+        this.setDepth(0);
+        //this.scene.scale.resize()
+        this.rect.on("pointerdown",onClick);
+        this.rect.on("pointerover",()=>{
+            this.rect.setFillStyle(this.overBack);
+            this.text.setColor(this.overText);
+        });
+        this.rect.on("pointerout",()=>{
+            this.rect.setFillStyle(this.outBack);
+            this.text.setColor(this.outText);
+        });
+        this.deactivate();
+    }
+    setPosition(x:number,y:number){
+        this.rect.setPosition(x,y);
+        this.text.setPosition(x+this.rect.width/2,y+this.rect.height/2);
+        this.rect.setInteractive();
+    }
+    setSize(w:number,h:number){
+        this.rect.setSize(w,h);
+        this.text.setPosition(this.rect.x+this.rect.width/2,this.rect.y+this.rect.height/2);
+        this.rect.setInteractive();
+    }
+    setText(t:string){
+        this.text.setText(t);
+    }
+    setDepth(v:number){
+        this.rect.setDepth(v);
+        this.text.setDepth(v+1);
+    }
+    
+    activate(){
+        this.rect.emit("pointerout");
+        this.rect.setActive(true).setVisible(true);
+        this.text.setActive(true).setVisible(true);
+    }
+    deactivate(){
+        this.rect.setActive(false).setVisible(false);
+        this.text.setActive(false).setVisible(false);
+    }
+}
