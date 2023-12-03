@@ -1,10 +1,7 @@
 import Phaser from "phaser";
-import {Start} from "./scene";
+import {start} from "./scene";
 
-new Phaser.Game({
-    width:800,
-    height:800,
-    scene:new Start("start"),
+start(new Phaser.Game({
     physics:{
         default:"arcade",
         arcade:{
@@ -14,4 +11,4 @@ new Phaser.Game({
     scale:{
         mode:Phaser.Scale.NONE
     }
-});
+}));

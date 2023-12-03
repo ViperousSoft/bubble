@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import {Keyboard} from "./ctrl";
-import {Bubble,Boy,Board,Terrain,BType,Pivot,BoxType,EType,Explosion,Bar,Button} from "./model";
+import {Bubble,Boy,Board,Terrain,BType,Pivot,BoxType,EType,Explosion,Bar,Button,Plate} from "./model";
 import {iterateX,iterateO,iterateH} from "./utils";
 import bub from "../assets/bubble.png";
 import boy from "../assets/boy.png";
@@ -11,16 +11,45 @@ import box from "../assets/boxes.png";
 import loon from "../assets/Laura Shigihara - Loonboon.mp3";
 import explode from "../assets/explosion.wav";
 import grass from "../assets/Grass.bmp";
+import EventEmitter from "eventemitter3";
 
+type Builts={
+    init:[],
+    preload:[],
+    create:[],
+}
+type Evt=Record<string,unknown[]>;
 
-export abstract class BaseScene extends Phaser.Scene{
+export abstract class MyScene<T extends Evt = {}> extends Phaser.Scene{
+    myEvents:EventEmitter<T|Builts>;
+    constructor(c?:string){
+        super(c);
+        this.myEvents=new EventEmitter();
+        type g=string|number;
+        type a=g[];
+    }
+    init(){
+        this.myEvents.emit("init",);
+        this.events.once("shutdown",()=>{
+            this.myEvents.removeAllListeners();
+        });
+    }
+    preload(){
+        this.myEvents.emit("preload");
+    }
+    create(){
+        this.myEvents.emit("create");
+    }
+}
+
+export abstract class BaseScene<T extends Evt = {}> extends MyScene<T>{
     board?:Board;
     keyboard?:Keyboard;
     egroup?:Phaser.Physics.Arcade.Group;
-    start:Start;
-    constructor(s:Start,c?:string){
+    //start:Start;
+    constructor(c?:string){
         super(c);
-        this.start=s;
+        //this.start=scenes.start;
     }
     preload(){
         const b=new Bar(this);
@@ -48,6 +77,7 @@ export abstract class BaseScene extends Phaser.Scene{
         this.load.audio("explode",explode);
     }
     create(){
+        super.create();
         this.anims.create({
             key:`bubble${BType.BLUE}`,
             frames:this.anims.generateFrameNumbers("bub",{
@@ -137,36 +167,54 @@ export abstract class BaseScene extends Phaser.Scene{
     abstract pop(b:Bubble):void;
 }
 
-export class SBoard extends Phaser.Scene{
+export class SBoard extends MyScene<{
+    score:[number],
+    time:[number],
+    pause:[]
+}>{
     b!:Bar;
-    max:number;
-    constructor(m:number,c?:string){
-        super(c);
-        this.max=m;
-    }
+    pb!:Plate;
+    pr!:Plate;
     preload(){
         this.load.image("grass",grass);
     }
     create(){
+        super.create();
         this.add.tileSprite(0,0,200,600,"grass").setOrigin(0,0);
         const t=this.add.text(100,100,"0").setOrigin(0.5,0.5).setColor("#fff000").setFontSize(20);
         this.b=new Bar(this);
-        
         this.b.setColor(0xffffff);
         this.b.setPosition(50,200);
-        this.b.setMax(this.max);
         this.b.setLineWidth(2);
         this.b.setSize(100,20);
         this.b.activate();
-        this.events.on("score",(v:number)=>{
+        this.myEvents.on("score",(v:number)=>{
             t.setText(v.toString());
         });
-        this.events.on("time",(v:number)=>{
+        this.myEvents.on("time",(v:number)=>{
             this.b.setCur(v);
         });
+        /*this.myEvents.on("max",(v:number)=>{
+            this.b.setMax(v);
+        });*/
+
+        this.pb=new Plate(this);
+        this.pb.setColor(0x0000ff);
+        this.pb.setPosition(50,400);
+        this.pb.setSize(25);
+        this.pb.setMax(100);
+        this.pb.activate();
+
+        this.pr=new Plate(this);
+        this.pr.setColor(0xff0000);
+        this.pr.setPosition(150,400);
+        this.pr.setSize(25);
+        this.pr.setMax(100);
+        this.pr.activate();
+        
         
         const b=new Button(this,()=>{
-            this.events.emit("p");
+            this.myEvents.emit("pause");
         });
         b.outBack=0xff0000;
         b.outText="#ffffff";
@@ -181,28 +229,23 @@ export class SBoard extends Phaser.Scene{
     }
 }
 
-class SGO extends Phaser.Scene{
+class SGO extends MyScene<{
+    main:[]
+}>{
     score!:number;
-    //onMenu:()=>void;
-    start:Start;
-    constructor(n:number,s:Start,c?:string){
-        super(c);
-        this.score=n;
-        this.start=s;
-    }
     init(){
+        super.init();
         const w=400,h=450;
         const x=(this.game.canvas.width-w)/2,y=(this.game.canvas.height-h)/2;
         this.cameras.main.setViewport(x,y,w,h);
         this.cameras.main.setBackgroundColor("rgba(255,0,0,0.5)");
     }
     create(){
+        super.create();
         this.add.text(200,100,"GAME OVER").setOrigin(0.5,0.5).setFontSize(30);
         this.add.text(200,200,`Score: ${this.score}`).setOrigin(0.5,0.5);
         const b=new Button(this,()=>{
-            this.scene.wake(this.start);
-            this.start.clear();
-            this.scene.stop(this).remove(this);
+            this.myEvents.emit("main");
         });
         b.outBack=0xff0000;
         b.outText="#ffffff";
@@ -220,10 +263,10 @@ export class S extends BaseScene{
     boy?:Boy;
     score!:number;
     tim!:number;
-    //text!:Phaser.GameObjects.Text;
-    //t!:Bar;
-    s!:SBoard;
+    pb!:number;
+    pr!:number;
     init(){
+        super.init();
         this.scale.resize(800,600);
     }
     create(){
@@ -231,15 +274,29 @@ export class S extends BaseScene{
         const w=20,h=20;
         this.board=new Board(this,w,h);
         this.tim=180000;
-        this.s=new SBoard(this.tim,"s");
-        this.scene.add("s",this.s,true);
+        this.pb=100;
+        this.pr=100;
+        this.scene.launch(scenes.s);
+        scenes.s.events.on("create",()=>{
+            scenes.s.cameras.main.setViewport(600,0,200,600);
+            scenes.s.b.setMax(this.tim);
+        });
         
-        this.start.main.push(this,this.s);
-        this.s.events.on("p",()=>{
-            this.scene.wake("pause");
-            this.scene.bringToTop("pause");
-            this.start.pause();
-            //console.log("fdfdfs");
+        
+        scenes.start.main.push(this,scenes.s);
+        scenes.s.myEvents.on("pause",()=>{
+            this.scene.bringToTop(scenes.pause);
+            scenes.start.pause();
+            scenes.pause.show();
+        });
+        scenes.sgo.myEvents.on("main",()=>{
+            this.scene.wake(scenes.start);
+            scenes.start.clear();
+            this.scene.stop(scenes.sgo);
+        });
+
+        this.events.on("shutdown",()=>{
+            this.sound.stopAll();
         });
 
         const l=this.board!.map.createBlankLayer("ground","block",0,0,w,h)!;
@@ -293,19 +350,28 @@ export class S extends BaseScene{
         this.physics.add.collider(this.boy.sprite,s);
 
         this.cameras.main.setViewport(0,0,600,600);
-        this.s.cameras.main.setViewport(600,0,200,600);
         this.cameras.main.startFollow(this.boy.sprite).setBounds(0,0,this.board.map.widthInPixels,this.board.map.heightInPixels);
         this.sound.play("bgm",{loop:true});
     }
     update(time: number, delta: number){
         this.tim=Math.max(0,this.tim-delta);
-        this.s.events.emit("time",this.tim);
+        this.pb=Math.min(100,this.pb+delta*0.05);
+        this.pr=Math.min(100,this.pr+delta*0.04);
+        scenes.s.myEvents.emit("time",this.tim);
+        scenes.s.pb.setCur(this.pb);
+        scenes.s.pr.setCur(this.pr);
         if(this.tim==0){
-            const p=new SGO(this.score,this.start);
-            this.start.pause();
-            this.scene.add("go",p,true);
+            const p=scenes.sgo;
+            
+            p.scene.restart();
+            p.myEvents.on("create",()=>{
+                //p.myEvents.emit("score",this.score);
+                p.score=this.score;
+            });
+            scenes.start.pause();
             return;
         }
+        
         const bo=this.board!.map.getLayer("box")!.tilemapLayer;
         if(this.keyboard!.A.isDown){
             this.boy!.start(Pivot.W);
@@ -323,10 +389,18 @@ export class S extends BaseScene{
             this.boy!.stop();
         }
         if(this.keyboard!.Q.isDown){
-            this.boy!.bubble(BType.BLUE);
+            if(this.pb==100){
+                this.pb=0;
+                this.boy!.bubble(BType.BLUE).start(2000);
+            }
+            
         }
         if(this.keyboard!.E.isDown){
-            this.boy!.bubble(BType.RED);
+            if(this.pr==100){
+                this.pr=0;
+                this.boy!.bubble(BType.RED).start(2000);
+            }
+            //this.boy!.bubble(BType.RED);
         }
         this.physics.overlap(this.boy!.sprite,this.egroup!,(a,b)=>{
             if(this.boy!.no)return;
@@ -339,7 +413,6 @@ export class S extends BaseScene{
                     this.boy!.setNo(false);
                 }
             });
-            //console.log(b.state);
             switch(b.state){
             case EType.O:
                 this.upd(-1);
@@ -548,27 +621,39 @@ export class S extends BaseScene{
         }
     }
     upd(x:number){
-        this.s.events.emit("score",this.score+=x);
-        
+        scenes.s.myEvents.emit("score",this.score+=x);
     }
 }
 
-export class Start extends Phaser.Scene{
-    main:Phaser.Scene[];
+export class Start extends MyScene{
+    main:MyScene<any>[];
     constructor(c?:string){
         super(c);
         this.main=[];
     }
     init(){
-        this.scene.add("pause",new Pause(this,"pause"),true);
+        this.scale.resize(800,800);
+        this.events.on("wake",()=>{
+            this.scale.resize(800,800);
+        });
+        scenes.pause.myEvents.on("main",()=>{
+            this.clear();
+            this.scene.wake(this);
+            scenes.pause.hide();
+        });
+        scenes.pause.myEvents.on("resume",()=>{
+            this.resume();
+            scenes.pause.hide();
+        });
     }
     preload(){
         this.load.image("grass",grass);
     }
     create(){
         this.add.tileSprite(0,0,800,800,"grass").setOrigin(0,0);
+        this.add.text(400,200,"Bubble").setOrigin(0.5,0.5).setFontSize(40).setColor("#ff0000");
         const b=new Button(this,()=>{
-            this.scene.add("S",new S(this,"S"),true);
+            this.scene.launch(scenes.S);
             this.scene.sleep(this);
         });
         b.outBack=0xff0000;
@@ -595,46 +680,76 @@ export class Start extends Phaser.Scene{
     clear(){
         this.main.forEach(s=>{
             this.scene.stop(s);
-            this.scene.remove(s);
         });
         this.main.splice(0,this.main.length);
     }
 }
 
-export class Pause extends Phaser.Scene{
-    start:Start;
-    constructor(s:Start,c?:string){
-        super(c);
-        this.start=s;
-    }
+export class Pause extends MyScene<{
+    resume:[],
+    main:[],
+}>{
     init(){
-        const w=400,h=400;
-        
-        this.cameras.main.setBackgroundColor("rgba(255,0,0,0.5)");
-        this.scene.sleep(this);
-        this.events.on("wake",()=>{
-            const x=(this.scale.gameSize.width-w)/2,y=(this.scale.gameSize.height-h)/2;
-            console.log(this.scale.gameSize);
-            console.log(this.scale.baseSize);
-            console.log(this.scale.displaySize);
-            this.cameras.main.setViewport(x,y,w,h);
-        });
+        super.init();
+        this.cameras.main.setBackgroundColor("rgba(20,20,20,0.7)");
+        this.hide();
     }
     create(){
-        this.add.text(200,200,"PAUSED").setOrigin(0.5,0.5);
+        super.create();
+        this.add.text(200,100,"PAUSED").setOrigin(0.5,0.5).setFontSize(30);
         const b=new Button(this,()=>{
-            this.start.resume();
-            this.scene.sleep(this);
+            this.myEvents.emit("resume");
         });
         b.outBack=0xff0000;
         b.outText="#ffffff";
         b.overBack=0x00ff00;
         b.overText="#000000";
         b.setText("Resume");
-        b.setPosition(150,300);
+        b.setPosition(150,200);
         b.setSize(100,50);
         b.setDepth(1);
         b.activate();
+
+        const b1=new Button(this,()=>{
+            this.myEvents.emit("main");
+        });
+        b1.outBack=0xff0000;
+        b1.outText="#ffffff";
+        b1.overBack=0x00ff00;
+        b1.overText="#000000";
+        b1.setText("Main Menu");
+        b1.setPosition(150,300);
+        b1.setSize(100,50);
+        b1.setDepth(1);
+        b1.activate();
     }
-    
+    show(){
+        const w=400,h=400;
+        this.scene.wake(this);
+        const x=(this.scale.gameSize.width-w)/2,y=(this.scale.gameSize.height-h)/2;
+        this.cameras.main.setViewport(x,y,w,h);
+    }
+    hide(){
+        this.scene.sleep(this);
+    }
+}
+
+const scenes={
+    start:new Start("start"),
+    pause:new Pause("pause"),
+    S:new S("S"),
+    s:new SBoard("s"),
+    sgo:new SGO("sgo")
+} as const satisfies Record<string,MyScene<any>>;
+
+function isKey<T extends object>(k:PropertyKey,t:T):k is keyof T{
+    return k in t;
+}
+
+export function start(game:Phaser.Game){
+    for(const k in scenes){
+        if(isKey(k,scenes)){
+            game.scene.add(k,scenes[k],k=="start"||k=="pause");
+        }
+    }
 }

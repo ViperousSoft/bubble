@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import {BaseScene} from "./scene";
+import {MyScene,BaseScene} from "./scene";
 
 export enum Terrain{
     EMPTY,
@@ -32,14 +32,26 @@ export enum BoxType{
     MAN
 }
 
-export class Bar{
-    scene:Phaser.Scene;
+export abstract class UI{
+    scene:MyScene<any>;
+    constructor(scene:MyScene<any>){
+        this.scene=scene;
+    }
+    abstract setPosition(x:number,y:number):void;
+    abstract setSize(w:number,h:number):void;
+    abstract setDepth(v:number):void;
+    abstract activate():void;
+    abstract deactivate():void;
+}
+
+
+export class Bar extends UI{
     border:Phaser.GameObjects.Rectangle;
     fill:Phaser.GameObjects.Rectangle;
     max:number;
     cur:number;
-    constructor(scene:Phaser.Scene){
-        this.scene=scene;
+    constructor(scene:MyScene<any>){
+        super(scene);
         this.border=scene.add.rectangle().setScrollFactor(0).setOrigin(0,0);
         this.fill=scene.add.rectangle().setScrollFactor(0).setOrigin(0,0);
         this.deactivate();
@@ -95,16 +107,16 @@ export class Bar{
     }
 }
 
-export class Plate{
-    scene:BaseScene;
+export class Plate extends UI{
+    //scene:BaseScene;
     border:Phaser.GameObjects.Arc;
     fill:Phaser.GameObjects.Arc;
     max:number;
     cur:number;
-    constructor(scene:BaseScene){
-        this.scene=scene;
+    constructor(scene:MyScene<any>){
+        super(scene);
         this.border=scene.add.arc().setScrollFactor(0);
-        this.fill=scene.add.arc().setScrollFactor(0);
+        this.fill=scene.add.arc().setScrollFactor(0);//new Phaser.Curves.Curve().
         this.deactivate();
         this.max=1;
         this.cur=0;
@@ -307,12 +319,10 @@ export class Player extends BasePhysicsModel{
 }
 
 export class Boy extends Player{
-    cd:boolean[];
     no:boolean;
     blink:Phaser.Time.TimerEvent;
     constructor(scene:BaseScene){
         super(scene,scene.physics.add.sprite(0,0,"boy"));
-        this.cd=[true,true,true];
         this.no=false;
         this.blink=scene.time.addEvent({
             delay:100,
@@ -344,20 +354,9 @@ export class Boy extends Player{
     }
 
     bubble(type:BType){
-        if(this.cd[type]){
-            this.cd[type]=false;
-            //const t=this.scene.board!.find(this.sprite.getCenter());
-            const b=new Bubble(this.scene,type);
-            b.setUnit(this.scene.board!.unit(this.sprite.body.center));
-            //b.setPosition(this.scene.board!.reg(this.sprite.getCenter()));
-            b.start(3000);
-            this.scene.time.addEvent({
-                delay:5000,
-                callback:()=>{
-                    this.cd[type]=true;
-                }
-            });
-        }
+        const b=new Bubble(this.scene,type);
+        b.setUnit(this.scene.board!.unit(this.sprite.body.center));
+        return b;
     }
     setNo(v:boolean){
         if(this.no===v){
@@ -374,25 +373,17 @@ export class Boy extends Player{
     }
 }
 
-export interface UI{
-    scene:Phaser.Scene;
-    setPosition:(x:number,y:number)=>void;
-    setSize:(w:number,h:number)=>void;
-    setDepth:(v:number)=>void;
-    activate:()=>void;
-    deactivate:()=>void;
-}
 
-export class Button implements UI{
-    scene:Phaser.Scene;
+export class Button extends UI{
+    //scene:Phaser.Scene;
     text:Phaser.GameObjects.Text;
     rect:Phaser.GameObjects.Rectangle;
     overBack:number;
     overText:string;
     outBack:number;
     outText:string;
-    constructor(scene:Phaser.Scene,onClick:()=>void){
-        this.scene=scene;
+    constructor(scene:MyScene<any>,onClick:()=>void){
+        super(scene);
         this.overBack=0x888888;
         this.overText="#ffffff";
         this.outBack=0x555555;

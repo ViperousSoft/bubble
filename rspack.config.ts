@@ -1,5 +1,5 @@
 import {defineConfig} from "@rspack/cli";
-import * as rspack from "@rspack/core";
+import {HtmlRspackPlugin} from "@rspack/core";
 export default defineConfig({
     mode:"production",
     target:"web",
@@ -18,10 +18,11 @@ export default defineConfig({
         ]
     },
     externals:{
-        "phaser":"Phaser"
+        "phaser":"Phaser",
+        "eventemitter3":"EventEmitter"
     },
     //devtool:false,
-    plugins:[new rspack.HtmlRspackPlugin({
+    plugins:[new HtmlRspackPlugin({
         template:"src/index.html"
     })]
 });
