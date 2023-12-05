@@ -173,9 +173,9 @@ export class Plate extends UI{
 }
 
 export class Board{
-    scene:BaseScene;
+    scene:BaseScene<any>;
     map:Phaser.Tilemaps.Tilemap;
-    constructor(scene:BaseScene,width:number,height:number){
+    constructor(scene:BaseScene<any>,width:number,height:number){
         this.scene=scene;
         this.map=scene.add.tilemap(undefined,40,40,width,height);
         this.map.addTilesetImage("block","block");
@@ -218,10 +218,10 @@ export class Board{
 
 }
 
-class BasePhysicsModel{
-    scene:BaseScene;
+abstract class BasePhysicsModel{
+    scene:BaseScene<any>;
     sprite:Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
-    constructor(scene:BaseScene,sprite:Phaser.Types.Physics.Arcade.SpriteWithDynamicBody){
+    constructor(scene:BaseScene<any>,sprite:Phaser.Types.Physics.Arcade.SpriteWithDynamicBody){
         this.scene=scene;
         this.sprite=sprite;
         this.deactivate();
@@ -246,7 +246,7 @@ class BasePhysicsModel{
 
 export class BoardLike extends BasePhysicsModel{
     protected v:Phaser.Math.Vector2;
-    constructor(scene:BaseScene,sprite:Phaser.Types.Physics.Arcade.SpriteWithDynamicBody){
+    constructor(scene:BaseScene<any>,sprite:Phaser.Types.Physics.Arcade.SpriteWithDynamicBody){
         super(scene,sprite);
         this.v=new Phaser.Math.Vector2();
     }
@@ -261,7 +261,7 @@ export class BoardLike extends BasePhysicsModel{
 
 export class Bubble extends BoardLike{
     type:BType;
-    constructor(scene:BaseScene,type:BType){
+    constructor(scene:BaseScene<any>,type:BType){
         super(scene,scene.physics.add.sprite(0,0,"bub"));
         this.type=type;
     }
@@ -280,7 +280,7 @@ export class Bubble extends BoardLike{
 
 export class Explosion extends BoardLike{
     type:EType;
-    constructor(scene:BaseScene,type:EType){
+    constructor(scene:BaseScene<any>,type:EType){
         super(scene,scene.physics.add.sprite(0,0,"expl"));
         this.type=type;
         this.sprite.setFrame(type);
@@ -296,10 +296,10 @@ export enum Pivot{
     N
 }
 
-export class Player extends BasePhysicsModel{
+export abstract class Player extends BasePhysicsModel{
     pivot:Pivot;
     walking:boolean;
-    constructor(scene:BaseScene,sprite:Phaser.Types.Physics.Arcade.SpriteWithDynamicBody){
+    constructor(scene:BaseScene<any>,sprite:Phaser.Types.Physics.Arcade.SpriteWithDynamicBody){
         super(scene,sprite);
         this.pivot=Pivot.S;
         this.walking=false;
@@ -321,7 +321,7 @@ export class Player extends BasePhysicsModel{
 export class Boy extends Player{
     no:boolean;
     blink:Phaser.Time.TimerEvent;
-    constructor(scene:BaseScene){
+    constructor(scene:BaseScene<any>){
         super(scene,scene.physics.add.sprite(0,0,"boy"));
         this.no=false;
         this.blink=scene.time.addEvent({
@@ -375,7 +375,6 @@ export class Boy extends Player{
 
 
 export class Button extends UI{
-    //scene:Phaser.Scene;
     text:Phaser.GameObjects.Text;
     rect:Phaser.GameObjects.Rectangle;
     overBack:number;
@@ -391,7 +390,7 @@ export class Button extends UI{
         this.text=scene.add.text(0,0,"").setOrigin(0.5,0.5).setScrollFactor(0);
         this.rect=scene.add.rectangle().setOrigin(0,0).setScrollFactor(0).setInteractive();
         this.setDepth(0);
-        //this.scene.scale.resize()
+
         this.rect.on("pointerdown",onClick);
         this.rect.on("pointerover",()=>{
             this.rect.setFillStyle(this.overBack);
@@ -429,5 +428,11 @@ export class Button extends UI{
     deactivate(){
         this.rect.setActive(false).setVisible(false);
         this.text.setActive(false).setVisible(false);
+    }
+    defaults(){
+        this.outBack=0xff0000;
+        this.outText="#ffffff";
+        this.overBack=0x00ff00;
+        this.overText="#000000";
     }
 }

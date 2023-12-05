@@ -29,7 +29,7 @@ export abstract class MyScene<T extends Evt = {}> extends Phaser.Scene{
         type a=g[];
     }
     init(){
-        this.myEvents.emit("init",);
+        this.myEvents.emit("init");
         this.events.once("shutdown",()=>{
             this.myEvents.removeAllListeners();
         });
@@ -46,12 +46,8 @@ export abstract class BaseScene<T extends Evt = {}> extends MyScene<T>{
     board?:Board;
     keyboard?:Keyboard;
     egroup?:Phaser.Physics.Arcade.Group;
-    //start:Start;
-    constructor(c?:string){
-        super(c);
-        //this.start=scenes.start;
-    }
     preload(){
+        super.preload();
         const b=new Bar(this);
         const w=200,h=20;
         const x=(this.game.canvas.width-w)/2,y=(this.game.canvas.height-h)/2;
@@ -176,6 +172,7 @@ export class SBoard extends MyScene<{
     pb!:Plate;
     pr!:Plate;
     preload(){
+        super.preload();
         this.load.image("grass",grass);
     }
     create(){
@@ -216,10 +213,7 @@ export class SBoard extends MyScene<{
         const b=new Button(this,()=>{
             this.myEvents.emit("pause");
         });
-        b.outBack=0xff0000;
-        b.outText="#ffffff";
-        b.overBack=0x00ff00;
-        b.overText="#000000";
+        b.defaults();
         b.setText("Pause");
         b.setPosition(50,300);
         b.setSize(100,50);
@@ -247,10 +241,7 @@ class SGO extends MyScene<{
         const b=new Button(this,()=>{
             this.myEvents.emit("main");
         });
-        b.outBack=0xff0000;
-        b.outText="#ffffff";
-        b.overBack=0x00ff00;
-        b.overText="#000000";
+        b.defaults();
         b.setText("Main Menu");
         b.setPosition(100,250);
         b.setSize(200,100);
@@ -632,6 +623,7 @@ export class Start extends MyScene{
         this.main=[];
     }
     init(){
+        super.init();
         this.scale.resize(800,800);
         this.events.on("wake",()=>{
             this.scale.resize(800,800);
@@ -645,26 +637,39 @@ export class Start extends MyScene{
             this.resume();
             scenes.pause.hide();
         });
+        scenes.help.myEvents.on("main",()=>{
+            this.scene.wake(this);
+            this.scene.sleep(scenes.help);
+        });
     }
     preload(){
+        super.preload();
         this.load.image("grass",grass);
     }
     create(){
+        super.create();
         this.add.tileSprite(0,0,800,800,"grass").setOrigin(0,0);
         this.add.text(400,200,"Bubble").setOrigin(0.5,0.5).setFontSize(40).setColor("#ff0000");
         const b=new Button(this,()=>{
             this.scene.launch(scenes.S);
             this.scene.sleep(this);
         });
-        b.outBack=0xff0000;
-        b.outText="#ffffff";
-        b.overBack=0x00ff00;
-        b.overText="#000000";
+        b.defaults();
         b.setText("Start");
         b.setPosition(300,350);
         b.setSize(200,100);
-        b.setDepth(1);
+        //b.setDepth(1);
         b.activate();
+        
+        const b1=new Button(this,()=>{
+            this.scene.wake(scenes.help);
+            this.scene.sleep(this);
+        });
+        b1.defaults();
+        b1.setText("Help");
+        b1.setPosition(300,450);
+        b1.setSize(200,100);
+        b1.activate();
         
     }
     pause(){
@@ -696,14 +701,11 @@ export class Pause extends MyScene<{
     }
     create(){
         super.create();
-        this.add.text(200,100,"PAUSED").setOrigin(0.5,0.5).setFontSize(30);
+        this.add.text(200,100,"PAUSED").setOrigin(0.5,0.5).setFontSize(30).getTopLeft();
         const b=new Button(this,()=>{
             this.myEvents.emit("resume");
         });
-        b.outBack=0xff0000;
-        b.outText="#ffffff";
-        b.overBack=0x00ff00;
-        b.overText="#000000";
+        b.defaults();
         b.setText("Resume");
         b.setPosition(150,200);
         b.setSize(100,50);
@@ -713,10 +715,7 @@ export class Pause extends MyScene<{
         const b1=new Button(this,()=>{
             this.myEvents.emit("main");
         });
-        b1.outBack=0xff0000;
-        b1.outText="#ffffff";
-        b1.overBack=0x00ff00;
-        b1.overText="#000000";
+       b1.defaults();
         b1.setText("Main Menu");
         b1.setPosition(150,300);
         b1.setSize(100,50);
@@ -734,12 +733,39 @@ export class Pause extends MyScene<{
     }
 }
 
+class Help extends MyScene<{
+    main:[]
+}>{
+    init(){
+        super.init();
+        this.scene.sleep(this);
+    }
+    preload(){
+        super.preload();
+        this.load.image("grass",grass);
+    }
+    create(){
+        super.create();
+        this.add.tileSprite(0,0,800,800,"grass").setOrigin(0,0);
+        this.add.text(200,100,"HELP").setOrigin(0.5,0.5).setFontSize(30).setCrop(0,0,50,50);
+        const b=new Button(this,()=>{
+            this.myEvents.emit("main");
+        });
+        b.defaults();
+        b.setText("Main Menu");
+        b.setPosition(150,300);
+        b.setSize(100,50);
+        b.activate();
+    }
+}
+
 const scenes={
     start:new Start("start"),
     pause:new Pause("pause"),
     S:new S("S"),
     s:new SBoard("s"),
-    sgo:new SGO("sgo")
+    sgo:new SGO("sgo"),
+    help:new Help("help")
 } as const satisfies Record<string,MyScene<any>>;
 
 function isKey<T extends object>(k:PropertyKey,t:T):k is keyof T{
@@ -749,7 +775,7 @@ function isKey<T extends object>(k:PropertyKey,t:T):k is keyof T{
 export function start(game:Phaser.Game){
     for(const k in scenes){
         if(isKey(k,scenes)){
-            game.scene.add(k,scenes[k],k=="start"||k=="pause");
+            game.scene.add(k,scenes[k],k=="start"||k=="pause"||k=="help");
         }
     }
 }
