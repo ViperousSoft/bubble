@@ -1,0 +1,34 @@
+
+1 General
+
+1.1 Board
+
+The game is played on an n*m board.
+
+1.2 Players
+
+Unlike tiles and bubbles, players aren't restricted to certain positions on the board. 
+
+Each player is controlled either by a human player or by an AI.
+
+1.3 Tiles
+
+Each tile on the board can be empty, have a tree, or have a cactus.
+
+Trees and cacti are obstacles.
+
+Empty tiles can have boxes placed on them. No two boxes share the same tile. Boxes can block player movements but can be destroyed.
+
+1.4 Bubbles
+
+Bubbles can be placed by players or released from destroyed boxes. In specific game modes, bubbles may appear or disappear according to the rules.
+
+When bubbles explode, certain tiles are affected. The explosion effect will last for 500 milliseconds, while the damage effect is instant.
+
+2 Game Modes
+
+2.1 PVP Mode
+
+Player 1 uses WASD to move. Player 2 uses arrows. Player 1 uses Q to place blue bubbles and E to place red bubbles. Player 2 uses N to place blue bubbles and M to place red bubbles.
+
+2.2 Box Mode

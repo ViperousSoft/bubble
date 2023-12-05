@@ -14,6 +14,10 @@ export default defineConfig({
             {
                 test:/\.(mp3|wav|bmp|jpe?g|png|svg|gif)$/,
                 type:"asset/resource"
+            },
+            {
+                test:/\.txt$/,
+                type:"asset/source"
             }
         ]
     },
