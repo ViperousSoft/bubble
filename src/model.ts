@@ -54,8 +54,8 @@ export class Board{
     constructor(scene:EnvScene,width:number,height:number){
         this.scene=scene;
         this.map=scene.add.tilemap(undefined,40,40,width,height);
-        this.map.addTilesetImage("block","block");
-        this.map.addTilesetImage("box","box");
+        this.map.addTilesetImage("block",SpriteKey.BLK);
+        this.map.addTilesetImage("box",SpriteKey.BOX);
         this.ground=this.map.createBlankLayer("ground","block")!;
         this.box=this.map.createBlankLayer("box","box")!;
     }
@@ -90,7 +90,7 @@ export class Board{
     check(v:Phaser.Math.Vector2){
         return v.x>=0&&v.y>=0&&v.x<this.map.width&&v.y<this.map.height;
     }
-    has(v:Phaser.Math.Vector2){
+    hasBox(v:Phaser.Math.Vector2){
         return this.box.hasTileAt(v.x,v.y);
     }
 
@@ -247,7 +247,8 @@ export class Player extends BasePhysicsModel{
 export abstract class Env<R extends object> extends EventEmitter<{
     done:[R],
     pause:[],
-    resume:[]
+    resume:[],
+    launch:[]
 }>{
     scenes:EnvScene[];
     constructor(...scenes:EnvScene[]){
@@ -273,7 +274,15 @@ export abstract class Env<R extends object> extends EventEmitter<{
         this.scenes=[];
         this.emit("done",r||this.quitResult());
     }
+    launch(){
+        for(const s of this.scenes){
+            SceneUtils.launch(s);
+        }
+        this.emit("launch");
+        this.reset();
+    }
     abstract quitResult():R;
+    abstract reset():void;
 }
 
 export class BoxEnv extends Env<{
@@ -297,17 +306,11 @@ export class BoxEnv extends Env<{
         this.score=0;
 
         this.s.myEvents.on("create",()=>{
-            this.player=new Player(this.board,pkey);
-            this.player.setUnit({x:10,y:10});
-            this.player.activate();
-            this.player.sprite.body.setSize(10,10,false);
-            this.player.sprite.body.setOffset(19,45);
-            this.main.physics.add.collider(this.player.sprite,this.board.box);
-            this.main.physics.add.collider(this.player.sprite,this.board.ground);
 
             this.s.add.tileSprite(0,0,200,600,SpriteKey.GRASS,0).setOrigin(0,0);
             this.text=this.s.add.text(100,100,"0").setOrigin(0.5,0.5).setColor("#fff000").setFontSize(20);
             this.timebar=new Bar(this.s);
+            this.timebar.setMax(180000);
             this.timebar.setColor(0xffffff);
             this.timebar.setPosition(50,200);
             this.timebar.setLineWidth(2);
@@ -341,10 +344,33 @@ export class BoxEnv extends Env<{
             const k=Keyboard.getKeyboardKeys(this.main);
             
         });
+
         this.main.myEvents.on("create",()=>{
-            this.board=new Board(this.main,20,20);
+            
+            const w=20,h=20;
+            this.board=new Board(this.main,w,h);
             this.egroup=this.main.physics.add.group();
             this.main.sound.play(AudioKey.LOON,{loop:true});
+
+            this.main.scale.resize(800,600);
+            this.main.cameras.main.setViewport(0,0,600,600);
+            this.main.cameras.main.setBounds(0,0,this.board.map.widthInPixels,this.board.map.heightInPixels);
+            this.s.cameras.main.setViewport(600,0,200,600);
+
+            this.board.ground.fill(Terrain.EMPTY,0,0,w,h);
+            this.board.ground.fill(Terrain.TREE,0,0,w,1);
+            this.board.ground.fill(Terrain.TREE,0,h-1,w,1);
+            this.board.ground.fill(Terrain.TREE,0,0,1,h);
+            this.board.ground.fill(Terrain.TREE,w-1,0,1,h);
+            
+
+            this.player=new Player(this.board,pkey);
+            this.player.setUnit({x:10,y:10});
+            this.player.activate();
+            this.player.sprite.body.setSize(10,10,false);
+            this.player.sprite.body.setOffset(19,45);
+            this.main.physics.add.collider(this.player.sprite,this.board.box);
+            this.main.physics.add.collider(this.player.sprite,this.board.ground);
         });
         this.main.myEvents.on("update",(t,delta)=>{
             
@@ -461,8 +487,9 @@ export class BoxEnv extends Env<{
                 default:break;
                 }
             });
+            this.egroup.clear();
         });
-        this.egroup.clear();
+        this.launch();
     }
     quitResult(){
         return {score:this.score};
@@ -577,7 +604,7 @@ export class BoxEnv extends Env<{
             IterateUtils.iterateO(1,1,v=>{
                 const x=b.getUnit().add(v);
                 if(!this.board.check(x))return;
-                if(!this.board.has(x))return;
+                if(!this.board.hasBox(x))return;
                 const l=new Explosion(this.board,ExplosionType.RED);
                 l.setUnit(x);
                 l.activate();
@@ -602,6 +629,19 @@ export class BoxEnv extends Env<{
             p.blink.paused=true;
             p.sprite.setVisible(true);
         }
+    }
+    gen(){
+        for(let i=0;i<this.board.map.width;i++){
+            for(let j=0;j<this.board.map.height;j++){
+                const t=this.board.ground.getTileAt(i,j,true).index;
+                if(t!=Terrain.EMPTY)continue;
+                const t1=this.board.box.getTileAt(i,j,true)
+            }
+        }
+    }
+    reset(){
+        this.score=0;
+        //this.timebar.setCur(180000);
     }
 }
 

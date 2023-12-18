@@ -9,6 +9,8 @@ import {Keyboard,ValidKeyCodes} from "./ctrl";
 import bub from "../assets/bubble.png";
 import boy from "../assets/boy.png";
 import girl from "../assets/girl.png";
+import boy2 from "../assets/boy2.png";
+import girl2 from "../assets/girl2.png";
 import blk from "../assets/blocks.png";
 import expl from "../assets/explosion.png";
 import box from "../assets/boxes.png";
@@ -114,6 +116,8 @@ export class Start extends SysScene<{
         this.load.spritesheet(SpriteKey.BUB,bub,{frameWidth:46,frameHeight:46});
         this.load.spritesheet(PlayerKey.BOY,boy,{frameWidth:48,frameHeight:60});
         this.load.spritesheet(PlayerKey.GIRL,girl,{frameWidth:48,frameHeight:60});
+        this.load.spritesheet(PlayerKey.BLUEBOY,boy2,{frameWidth:48,frameHeight:60});
+        this.load.spritesheet(PlayerKey.BLUEGIRL,girl2,{frameWidth:48,frameHeight:60});
         this.load.spritesheet(SpriteKey.BLK,blk,{frameWidth:40,frameHeight:40});
         this.load.spritesheet(SpriteKey.EXPL,expl,{frameWidth:40,frameHeight:40});
         this.load.spritesheet(SpriteKey.BOX,box,{frameWidth:40,frameHeight:40});
@@ -260,15 +264,15 @@ export class Choose extends SysScene<{
         this.r=r;
     }
     create(){
-        this.add.tileSprite(0,0,800,800,SpriteKey.GRASS,1).setOrigin(0,0);
-        this.sprite=this.add.sprite(400,300,PlayerKey.BOY,0);
+        this.add.tileSprite(0,0,400,800,SpriteKey.GRASS,1).setOrigin(0,0);
+        this.sprite=this.add.sprite(200,300,PlayerKey.BOY,0);
         const k=Keyboard.getKeyboardKeys(this);
         this.prv=k[this.l];
         this.nxt=k[this.r];
         const b=new Button(this,()=>{
             this.blink.paused=true;
             this.sprite.setVisible(true);
-            SceneUtils.pause(this);
+            //SceneUtils.pause(this);
             this.myEvents.emit("done",Choose.keys[this.i]);
         });
         b.defaults();
@@ -277,24 +281,27 @@ export class Choose extends SysScene<{
         b.setSize(200,100);
         b.activate();
         this.blink=this.time.addEvent({
-            delay:100,
+            delay:200,
             loop:true,
             callback:()=>{
                 this.sprite.setVisible(!this.sprite.visible);
             }
         });
-    }
-    update(time:number,delta:number){
-        if(this.nxt.isDown){
+        this.nxt.on("down",()=>{
             this.i=(this.i+1)%Choose.keys.length;
-        }
-        else if(this.prv.isDown){
+            this.sprite.setTexture(Choose.keys[this.i],0);
+        });
+        this.prv.on("down",()=>{
             this.i=(this.i-1+Choose.keys.length)%Choose.keys.length;
-        }
-        else{
-            return;
-        }
-        this.sprite.setTexture(Choose.keys[this.i],0);
+            this.sprite.setTexture(Choose.keys[this.i],0);
+        })
+    }
+    ready(){
+        return new Promise<PlayerKey>((res)=>{
+            this.myEvents.once("done",k=>{
+                res(k);
+            });
+        });
     }
 }
 
@@ -338,7 +345,7 @@ export class Mgr{
     pause:Pause;
     help:Help;
     gameover:GameOver;
-    env!:Env<any>;
+    env!:Env<object>;
     game:Phaser.Game;
     constructor(){
         
@@ -346,20 +353,39 @@ export class Mgr{
         this.pause=new Pause("pause");
         this.help=new Help("help");
         this.gameover=new GameOver("gameover");
-        
-        this.start.myEvents.on("box",()=>{
+
+        this.start.rect=new Phaser.Geom.Rectangle(0,0,800,800);
+        //this.pause.rect=new Phaser.Geom.Rectangle(0,0,800,800);
+        this.help.rect=new Phaser.Geom.Rectangle(0,0,800,800);
+
+        this.start.myEvents.on("box",async()=>{
+            this.start.deactivate();
             const choose=new Choose("A","D");
+            choose.rect=new Phaser.Geom.Rectangle(0,0,400,800);
+            this.start.scale.resize(400,800);
             this.game.scene.add("choose",choose,true);
-            choose.myEvents.on("done",k=>{
-                const main=new EnvScene("main");
-                this.game.scene.add("main",main,true);
-                const s=new EnvScene("s");
-                this.game.scene.add("s",s,true);
-                this.env=new BoxEnv(main,s,k);
+            
+            const k=await choose.ready();
+            choose.deactivate();
+
+            const main=new EnvScene("main");
+            this.game.scene.add("main",main);
+            const s=new EnvScene("s");
+            this.game.scene.add("s",s);
+            this.env=new BoxEnv(main,s,k);
+            this.env.on("done",r=>{
+                this.gameover.text=r.toString();
+                this.gameover.rect=new Phaser.Geom.Rectangle(200,100,400,400);
+                SceneUtils.launch(this.gameover);
             });
             
         });
+        this.start.myEvents.on("help",()=>{
+            this.help.activate();
+            this.start.deactivate();
+        });
         this.pause.myEvents.on("main",()=>{
+            this.env.removeAllListeners();
             this.env.done();
             this.start.activate();
             this.pause.deactivate();
@@ -383,6 +409,9 @@ export class Mgr{
                 arcade:{
                     debug:false
                 }
+            },
+            scale:{
+                mode:Phaser.Scale.NONE
             }
         });
     }
