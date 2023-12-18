@@ -290,16 +290,14 @@ export class BoxEnv extends Env<{
     pb!:Plate;
     pr!:Plate;
     blink!:Phaser.Time.TimerEvent;
-    constructor(main:EnvScene,s:EnvScene){
+    constructor(main:EnvScene,s:EnvScene,pkey:PlayerKey){
         super(main,s);
         this.main=main;
         this.s=s;
-        this.main
-
         this.score=0;
 
         this.s.myEvents.on("create",()=>{
-
+            this.player=new Player(this.board,pkey);
             this.player.setUnit({x:10,y:10});
             this.player.activate();
             this.player.sprite.body.setSize(10,10,false);
@@ -339,9 +337,8 @@ export class BoxEnv extends Env<{
             b.setPosition(50,300);
             b.setSize(100,50);
             b.activate();
-
-            const k=new Keyboard(this.main);
             
+            const k=Keyboard.getKeyboardKeys(this.main);
             
         });
         this.main.myEvents.on("create",()=>{

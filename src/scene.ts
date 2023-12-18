@@ -4,7 +4,7 @@ import EventEmitter,{ValidEventTypes} from "eventemitter3";
 import {BubbleType,Pivot,Env,BoxEnv} from "./model";
 import {Bar,Button} from "./ui";
 import {SceneUtils} from "./utils";
-import {Keyboard} from "./ctrl";
+import {Keyboard,ValidKeyCodes} from "./ctrl";
 
 import bub from "../assets/bubble.png";
 import boy from "../assets/boy.png";
@@ -41,9 +41,14 @@ export enum PlayerKey{
 
 export abstract class SysScene<T extends ValidEventTypes={}> extends Phaser.Scene{
     myEvents:EventEmitter<T>;
+    rect:Phaser.Geom.Rectangle;
     constructor(c?:string){
         super(c);
         this.myEvents=new EventEmitter();
+        this.rect=new Phaser.Geom.Rectangle();
+    }
+    init(){
+        this.cameras.main.setViewport(this.rect.x,this.rect.y,this.rect.width,this.rect.height);
     }
     activate(){
         SceneUtils.launch(this);
@@ -60,8 +65,9 @@ export abstract class SysScene<T extends ValidEventTypes={}> extends Phaser.Scen
 class GameOver extends SysScene<{
     main:[]
 }>{
-    score!:number;
+    text!:string;
     init(){
+        super.init();
         const w=400,h=450;
         const x=(this.game.canvas.width-w)/2,y=(this.game.canvas.height-h)/2;
         this.cameras.main.setViewport(x,y,w,h);
@@ -69,7 +75,7 @@ class GameOver extends SysScene<{
     }
     create(){
         this.add.text(200,100,"GAME OVER").setOrigin(0.5,0.5).setFontSize(30);
-        this.add.text(200,200,`Score: ${this.score}`).setOrigin(0.5,0.5);
+        this.add.text(200,200,this.text).setOrigin(0.5,0.5);
         const b=new Button(this,()=>{
             this.myEvents.emit("main");
         });
@@ -87,10 +93,6 @@ export class Start extends SysScene<{
     pvp:[],
     help:[]
 }>{
-
-    init(){
-        this.scale.resize(800,800);
-    }
     preload(){
         
         const b=new Bar(this);
@@ -179,8 +181,8 @@ export class Pause extends SysScene<{
     main:[],
 }>{
     init(){
+        super.init();
         this.cameras.main.setBackgroundColor("rgba(20,20,20,0.7)");
-        //this.deactivate();
     }
     create(){
         this.add.text(200,100,"PAUSED").setOrigin(0.5,0.5).setFontSize(30);
@@ -246,22 +248,51 @@ export class Choose extends SysScene<{
     static keys=[PlayerKey.BOY,PlayerKey.GIRL,PlayerKey.BLUEBOY,PlayerKey.BLUEGIRL];
     i:number;
     sprite!:Phaser.GameObjects.Sprite;
-    keyboard!:Keyboard;
-    constructor(c?:string){
-        super(c);
+    prv!:Phaser.Input.Keyboard.Key;
+    nxt!:Phaser.Input.Keyboard.Key;
+    l:ValidKeyCodes;
+    r:ValidKeyCodes;
+    blink!:Phaser.Time.TimerEvent;
+    constructor(l:ValidKeyCodes,r:ValidKeyCodes){
+        super();
         this.i=0;
+        this.l=l;
+        this.r=r;
     }
     create(){
         this.add.tileSprite(0,0,800,800,SpriteKey.GRASS,1).setOrigin(0,0);
-        this.sprite=this.add.sprite(400,400,PlayerKey.BOY,0);
-        this.keyboard=new Keyboard(this);
+        this.sprite=this.add.sprite(400,300,PlayerKey.BOY,0);
+        const k=Keyboard.getKeyboardKeys(this);
+        this.prv=k[this.l];
+        this.nxt=k[this.r];
+        const b=new Button(this,()=>{
+            this.blink.paused=true;
+            this.sprite.setVisible(true);
+            SceneUtils.pause(this);
+            this.myEvents.emit("done",Choose.keys[this.i]);
+        });
+        b.defaults();
+        b.setText("Ready");
+        b.setPosition(300,600);
+        b.setSize(200,100);
+        b.activate();
+        this.blink=this.time.addEvent({
+            delay:100,
+            loop:true,
+            callback:()=>{
+                this.sprite.setVisible(!this.sprite.visible);
+            }
+        });
     }
     update(time:number,delta:number){
-        if(this.keyboard.E.isDown){
+        if(this.nxt.isDown){
             this.i=(this.i+1)%Choose.keys.length;
         }
-        else if(this.keyboard.Q.isDown){
+        else if(this.prv.isDown){
             this.i=(this.i-1+Choose.keys.length)%Choose.keys.length;
+        }
+        else{
+            return;
         }
         this.sprite.setTexture(Choose.keys[this.i],0);
     }
@@ -317,11 +348,16 @@ export class Mgr{
         this.gameover=new GameOver("gameover");
         
         this.start.myEvents.on("box",()=>{
-            const main=new EnvScene("main");
-            this.game.scene.add("main",main,true);
-            const s=new EnvScene("s");
-            this.game.scene.add("s",s,true);
-            this.env=new BoxEnv(main,s);
+            const choose=new Choose("A","D");
+            this.game.scene.add("choose",choose,true);
+            choose.myEvents.on("done",k=>{
+                const main=new EnvScene("main");
+                this.game.scene.add("main",main,true);
+                const s=new EnvScene("s");
+                this.game.scene.add("s",s,true);
+                this.env=new BoxEnv(main,s,k);
+            });
+            
         });
         this.pause.myEvents.on("main",()=>{
             this.env.done();
@@ -348,6 +384,6 @@ export class Mgr{
                     debug:false
                 }
             }
-        })
+        });
     }
 }
