@@ -307,6 +307,7 @@ export class BoxEnv extends Env<{
     pr!:Plate;
     blink!:Phaser.Time.TimerEvent;
     keys!:Record<ValidKeyCodes,Phaser.Input.Keyboard.Key>;
+    gens:number;
     constructor(main:EnvScene,s:EnvScene,pkey:PlayerKey){
         super(main,s);
         this.main=main;
@@ -315,6 +316,7 @@ export class BoxEnv extends Env<{
         this.time=0;
         this.bluecd=0;
         this.redcd=0;
+        this.gens=0;
 
         this.s.myEvents.on("create",()=>{
 
@@ -675,24 +677,25 @@ export class BoxEnv extends Env<{
         }
     }
     gen(){
+        this.gens++;
         for(let i=0;i<this.board.map.width;i++){
             for(let j=0;j<this.board.map.height;j++){
                 if(this.player.getPosition().distance(this.board.cent({x:i,y:j}))<2*this.board.map.tileWidth)continue;
                 const t=this.board.ground.getTileAt(i,j,true).index;
                 if(t!=Terrain.EMPTY)continue;
-                const t1=this.board.box.getTileAt(i,j,true).index;
-                if(t1!=-1)continue;
-                if(Math.random()<0.05){
-                    this.board.box.putTileAt(BoxType.SILVER,i,j,true);
-                }
-                else if(Math.random()<0.05){
-                    this.board.box.putTileAt(BoxType.GOLD,i,j,true);
-                }
-                else if(Math.random()<0.05){
-                    this.board.box.putTileAt(BoxType.N,i,j,true);
-                }
-                else if(Math.random()<0.5){
-                    this.board.box.putTileAt(BoxType.O,i,j,true);
+                if(this.board.hasBox(new Phaser.Math.Vector2(i,j)))continue;
+                if(Math.random()<4/(this.gens+10))continue;
+                const l=[Math.max(0,0.1*(this.gens-3)),Math.max(0,0.2*(this.gens-2)),Math.max(0,0.3*(this.gens-2)),0.05*(this.gens-1),0.05*(this.gens-1),0.1*this.gens,0.1*this.gens,0.5*this.gens,0.5*Math.sqrt(this.gens)];
+                const tp=[BoxType.SILVER,BoxType.GOLD,BoxType.DARK,BoxType.PURPLE,BoxType.GREEN,BoxType.BLACK,BoxType.BLUE,BoxType.N,BoxType.O];
+                const res=Math.random()*l.reduce((p,a)=>p+a);
+                let s=0;
+                for(let k=0;k<9;k++){
+                    s+=l[k];
+                    if(res<s){
+                        this.board.box.putTileAt(tp[k],i,j,true);
+                        break;
+                    }
+
                 }
             }
         }
@@ -702,7 +705,7 @@ export class BoxEnv extends Env<{
         this.time=180000;
         this.bluecd=0;
         this.redcd=0;
-        //this.timebar.setCur(180000);
+        this.gens=0;
     }
 }
 
