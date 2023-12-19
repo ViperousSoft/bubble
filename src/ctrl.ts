@@ -6,13 +6,12 @@ const validKeyCodes=[
 "UP", "DOWN", "LEFT", "RIGHT", "ENTER"] as const;
 export type ValidKeyCodes=(typeof validKeyCodes)[number];
 
-export class Keyboard {
-    static getKeyboardKeys(scene: Phaser.Scene){
-        const keyboardKeys = {} as Record<ValidKeyCodes, Phaser.Input.Keyboard.Key>;
-        validKeyCodes.forEach(keyCode=> {
-            const key = Phaser.Input.Keyboard.KeyCodes[keyCode];
-            keyboardKeys[keyCode] = scene.input.keyboard!.addKey(key);
-          
+export class Keyboard{
+    static getKeyboardKeys(scene:Phaser.Scene){
+        const keyboardKeys={} as Record<ValidKeyCodes,Phaser.Input.Keyboard.Key>;
+        validKeyCodes.forEach(keyCode=>{
+            const key=Phaser.Input.Keyboard.KeyCodes[keyCode];
+            keyboardKeys[keyCode]=scene.input.keyboard!.addKey(key);
         });
         return keyboardKeys;
     }

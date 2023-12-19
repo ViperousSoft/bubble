@@ -3,7 +3,7 @@ import EventEmitter from "eventemitter3";
 import {EnvScene,SpriteKey,PlayerKey,AudioKey} from "./scene";
 import {IterateUtils,SceneUtils} from "./utils";
 import {Bar,Button,Plate} from "./ui";
-import {Keyboard} from "./ctrl";
+import {Keyboard,ValidKeyCodes} from "./ctrl";
 
 export enum Terrain{
     EMPTY,
@@ -119,6 +119,9 @@ abstract class BasePhysicsModel{
     setVelocity({x,y}:Phaser.Types.Math.Vector2Like){
         this.sprite.setVelocity(x||0,y);
     }
+    getPosition(){
+        return new Phaser.Math.Vector2(this.sprite.x,this.sprite.y);
+    }
 }
 
 export class BoardLike extends BasePhysicsModel{
@@ -163,18 +166,19 @@ export enum Pivot{
     N
 }
 
+class PlayerInput{
+    pivot?:Pivot;
+    bubble?:BubbleType;
+    skill?:SkillType;
+}
+
 export class Player extends BasePhysicsModel{
     pivot:Pivot;
     walking:boolean;
     text:Phaser.GameObjects.Text;
     no:boolean;
     blink:Phaser.Time.TimerEvent;
-    input:EventEmitter<{
-        walk:[Pivot],
-        stop:[],
-        bubble:[BubbleType],
-        skill:[SkillType]
-    }>;
+    input:PlayerInput;
     key:PlayerKey;
     constructor(board:Board,key:PlayerKey){
         super(board,board.scene.physics.add.sprite(0,0,key));
@@ -182,7 +186,7 @@ export class Player extends BasePhysicsModel{
         this.walking=false;
         this.text=board.scene.add.text(0,0,"").setDepth(2).setOrigin(0.5,0.5).setFontStyle("bold");
         this.no=false;
-        this.input=new EventEmitter();
+        this.input=new PlayerInput();
         this.key=key;
         this.blink=board.scene.time.addEvent({
             delay:100,
@@ -191,13 +195,13 @@ export class Player extends BasePhysicsModel{
                 this.sprite.setVisible(!this.no);
             }
         });
-        this.input.on("walk",p=>{
+        /*this.input.on("walk",p=>{
             this.pivot=p;
             this.sprite.play(`${key}${p}`);
         });
         this.input.on("stop",()=>{
             this.sprite.setFrame(this.board.scene.anims.get(`${key}${this.pivot}`).getFrameAt(0).frame);
-        });
+        });*/
     }
     getBaseVelocity(){
         return Player.getBaseVelocity(this.pivot);
@@ -294,16 +298,23 @@ export class BoxEnv extends Env<{
     board!:Board;
     egroup!:Phaser.Physics.Arcade.Group;
     score:number;
+    time:number;
+    bluecd:number;
+    redcd:number;
     text!:Phaser.GameObjects.Text;
     timebar!:Bar;
     pb!:Plate;
     pr!:Plate;
     blink!:Phaser.Time.TimerEvent;
+    keys!:Record<ValidKeyCodes,Phaser.Input.Keyboard.Key>;
     constructor(main:EnvScene,s:EnvScene,pkey:PlayerKey){
         super(main,s);
         this.main=main;
         this.s=s;
         this.score=0;
+        this.time=0;
+        this.bluecd=0;
+        this.redcd=0;
 
         this.s.myEvents.on("create",()=>{
 
@@ -341,8 +352,7 @@ export class BoxEnv extends Env<{
             b.setSize(100,50);
             b.activate();
             
-            const k=Keyboard.getKeyboardKeys(this.main);
-            
+            this.s.cameras.main.setViewport(600,0,200,600);
         });
 
         this.main.myEvents.on("create",()=>{
@@ -353,16 +363,37 @@ export class BoxEnv extends Env<{
             this.main.sound.play(AudioKey.LOON,{loop:true});
 
             this.main.scale.resize(800,600);
-            this.main.cameras.main.setViewport(0,0,600,600);
-            this.main.cameras.main.setBounds(0,0,this.board.map.widthInPixels,this.board.map.heightInPixels);
-            this.s.cameras.main.setViewport(600,0,200,600);
 
             this.board.ground.fill(Terrain.EMPTY,0,0,w,h);
             this.board.ground.fill(Terrain.TREE,0,0,w,1);
             this.board.ground.fill(Terrain.TREE,0,h-1,w,1);
             this.board.ground.fill(Terrain.TREE,0,0,1,h);
             this.board.ground.fill(Terrain.TREE,w-1,0,1,h);
-            
+
+            for(let i=0;i<20;i++){
+                const x=Math.floor(Math.random()*(w-2)+1);
+                const y=Math.floor(Math.random()*(h-2)+1);
+                if(x==10&&y==10){
+                    i--;
+                    continue;
+                }
+                this.board.ground.putTileAt(Terrain.CACTUS,x,y);
+            }
+
+            //const ee=new PlayerInput();
+            this.keys=Keyboard.getKeyboardKeys(this.main);
+            this.keys.A.on("down",()=>{
+                this.player.pivot=Pivot.W;
+            });
+            this.keys.D.on("down",()=>{
+                this.player.pivot=Pivot.E;
+            });
+            this.keys.W.on("down",()=>{
+                this.player.pivot=Pivot.N;
+            });
+            this.keys.S.on("down",()=>{
+                this.player.pivot=Pivot.S;
+            });
 
             this.player=new Player(this.board,pkey);
             this.player.setUnit({x:10,y:10});
@@ -371,18 +402,31 @@ export class BoxEnv extends Env<{
             this.player.sprite.body.setOffset(19,45);
             this.main.physics.add.collider(this.player.sprite,this.board.box);
             this.main.physics.add.collider(this.player.sprite,this.board.ground);
+
+            this.gen();
+
+            this.main.cameras.addExisting(this.player.cam(600,600),true);
         });
         this.main.myEvents.on("update",(t,delta)=>{
-            
-            this.timebar.setCur(Math.max(0,this.timebar.cur-delta));
-            this.pb.setCur(Math.min(100,this.pb.cur+delta*0.05));
-            this.pr.setCur(Math.min(100,this.pr.cur+delta*0.04));
-
+            this.time=Math.max(0,this.time-delta);
+            this.timebar.setCur(this.time);
+            this.bluecd=Math.min(100,this.bluecd+delta*0.05);
+            this.pb.setCur(this.bluecd);
+            this.redcd=Math.min(100,this.redcd+delta*0.04);
+            this.pr.setCur(this.redcd);
 
             if(this.timebar.cur==0){
                 this.done({score:this.score});
                 return;
             }
+            
+            if(this.keys.A.isUp&&this.keys.D.isUp&&this.keys.W.isUp&&this.keys.S.isUp){
+                this.player.input.pivot=undefined;
+            }else{
+                this.player.input.pivot=this.player.pivot;
+            }
+            
+
 
             this.main.physics.overlap(this.player.sprite,this.egroup,(a,b)=>{
                 if(this.player.no)return;
@@ -633,14 +677,31 @@ export class BoxEnv extends Env<{
     gen(){
         for(let i=0;i<this.board.map.width;i++){
             for(let j=0;j<this.board.map.height;j++){
+                if(this.player.getPosition().distance(this.board.cent({x:i,y:j}))<2*this.board.map.tileWidth)continue;
                 const t=this.board.ground.getTileAt(i,j,true).index;
                 if(t!=Terrain.EMPTY)continue;
-                const t1=this.board.box.getTileAt(i,j,true)
+                const t1=this.board.box.getTileAt(i,j,true).index;
+                if(t1!=-1)continue;
+                if(Math.random()<0.05){
+                    this.board.box.putTileAt(BoxType.SILVER,i,j,true);
+                }
+                else if(Math.random()<0.05){
+                    this.board.box.putTileAt(BoxType.GOLD,i,j,true);
+                }
+                else if(Math.random()<0.05){
+                    this.board.box.putTileAt(BoxType.N,i,j,true);
+                }
+                else if(Math.random()<0.5){
+                    this.board.box.putTileAt(BoxType.O,i,j,true);
+                }
             }
         }
     }
     reset(){
         this.score=0;
+        this.time=180000;
+        this.bluecd=0;
+        this.redcd=0;
         //this.timebar.setCur(180000);
     }
 }

@@ -95,8 +95,13 @@ export class Start extends SysScene<{
     pvp:[],
     help:[]
 }>{
+    un=false;
+    init(){
+        super.init();
+        this.scale.resize(800,800);
+    }
     preload(){
-        
+        if(this.un)return;
         const b=new Bar(this);
         const w=200,h=20;
         const x=(this.game.canvas.width-w)/2,y=(this.game.canvas.height-h)/2;
@@ -127,33 +132,35 @@ export class Start extends SysScene<{
         
     }
     create(){
-        const bs=[BubbleType.BLUE,BubbleType.RED,BubbleType.BLACK,BubbleType.GREEN,BubbleType.PURPLE];
-        for(let i=0;i<bs.length;i++){
-            this.anims.create({
-                key:`${SpriteKey.BUB}${bs[i]}`,
-                frames:this.anims.generateFrameNumbers(SpriteKey.BUB,{
-                    start:i*6,
-                    end:i*6+5
-                }),
-                frameRate:6,
-                repeat:-1
-            });
+        if(!this.un){
+            this.un=true;
+            const bs=[BubbleType.BLUE,BubbleType.RED,BubbleType.BLACK,BubbleType.GREEN,BubbleType.PURPLE];
+            for(let i=0;i<bs.length;i++){
+                this.anims.create({
+                    key:`${SpriteKey.BUB}${bs[i]}`,
+                    frames:this.anims.generateFrameNumbers(SpriteKey.BUB,{
+                        start:i*6,
+                        end:i*6+5
+                    }),
+                    frameRate:6,
+                    repeat:-1
+                });
+            }
+            const p=[Pivot.S,Pivot.W,Pivot.E,Pivot.N];
+            for(let i=0;i<p.length;i++){
+                this.anims.create({
+                    key:`${PlayerKey.BOY}${p[i]}`,
+                    frames:this.anims.generateFrameNumbers(PlayerKey.BOY,{
+                        start:i*4,
+                        end:i*4+3
+                    }),
+                    frameRate:6,
+                    repeat:-1
+                });
+            }
+            this.sound.add(AudioKey.LOON);
+            this.sound.add(AudioKey.EXPLO);
         }
-        const p=[Pivot.S,Pivot.W,Pivot.E,Pivot.N];
-        for(let i=0;i<p.length;i++){
-            this.anims.create({
-                key:`${PlayerKey.BOY}${p[i]}`,
-                frames:this.anims.generateFrameNumbers(PlayerKey.BOY,{
-                    start:i*4,
-                    end:i*4+3
-                }),
-                frameRate:6,
-                repeat:-1
-            });
-        }
-        this.sound.add(AudioKey.LOON);
-        this.sound.add(AudioKey.EXPLO);
-
         this.add.tileSprite(0,0,800,800,SpriteKey.GRASS,0).setOrigin(0,0);
         this.add.text(400,200,"Bubble").setOrigin(0.5,0.5).setFontSize(40).setColor("#ff0000");
         const b=new Button(this,()=>{
@@ -277,7 +284,7 @@ export class Choose extends SysScene<{
         });
         b.defaults();
         b.setText("Ready");
-        b.setPosition(300,600);
+        b.setPosition(100,100);
         b.setSize(200,100);
         b.activate();
         this.blink=this.time.addEvent({
@@ -366,7 +373,7 @@ export class Mgr{
             this.game.scene.add("choose",choose,true);
             
             const k=await choose.ready();
-            choose.deactivate();
+            SceneUtils.remove(choose);
 
             const main=new EnvScene("main");
             this.game.scene.add("main",main);
@@ -377,6 +384,10 @@ export class Mgr{
                 this.gameover.text=r.toString();
                 this.gameover.rect=new Phaser.Geom.Rectangle(200,100,400,400);
                 SceneUtils.launch(this.gameover);
+            });
+            this.pause.rect=new Phaser.Geom.Rectangle(200,100,400,400);
+            this.env.on("pause",()=>{
+                this.pause.activate();
             });
             
         });
