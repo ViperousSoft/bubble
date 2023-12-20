@@ -32,3 +32,13 @@ When bubbles explode, certain tiles are affected. The explosion effect will last
 Player 1 uses WASD to move. Player 2 uses arrows. Player 1 uses Q to place blue bubbles and E to place red bubbles. Player 2 uses N to place blue bubbles and M to place red bubbles.
 
 2.2 Box Mode
+
+First, you'll enter a scene where you can use A and D to switch your character. When ready, you can click the ready button.
+
+The goal is to get as many points as possible by destroying boxes. You'll get 2 points upon destroying a gold box and 1 point upon destroying other types of box.
+
+If you are affected by a bubble, you'll lose points according to the damage you take.
+
+3 About
+
+This game is made with Phaser.js, an open-source framework. Repo site: https://github.com/Tom-abc/bubble
