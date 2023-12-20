@@ -120,7 +120,7 @@ abstract class BasePhysicsModel{
         this.sprite.setVelocity(x||0,y);
     }
     getPosition(){
-        return new Phaser.Math.Vector2(this.sprite.x,this.sprite.y);
+        return this.sprite.body.center;
     }
 }
 
@@ -181,7 +181,7 @@ export class Player extends BasePhysicsModel{
     input:PlayerInput;
     key:PlayerKey;
     constructor(board:Board,key:PlayerKey){
-        super(board,board.scene.physics.add.sprite(0,0,key));
+        super(board,board.scene.physics.add.sprite(0,0,key).setOrigin(0.5,0.7));
         this.pivot=Pivot.S;
         this.walking=false;
         this.text=board.scene.add.text(0,0,"").setDepth(2).setOrigin(0.5,0.5).setFontStyle("bold");
@@ -235,7 +235,7 @@ export class Player extends BasePhysicsModel{
         }
 
         this.setVelocity(this.getBaseVelocity().scale(100));
-        //this.sprite.play(`boy${this.pivot}`);
+        this.sprite.play(`${this.key}${this.pivot}`);
     }
     stop(){
         if(!this.walking){
@@ -244,7 +244,7 @@ export class Player extends BasePhysicsModel{
         this.walking=false;
         this.setVelocity({x:0,y:0});
         this.sprite.stop();
-        //this.sprite.setFrame(this.board.scene.anims.get(`boy${this.pivot}`).getFrameAt(0).frame);
+        this.sprite.setFrame(this.board.scene.anims.get(`${this.key}${this.pivot}`).getFrameAt(0).frame);
     }
 }
 
@@ -363,8 +363,13 @@ export class BoxEnv extends Env<{
             this.board=new Board(this.main,w,h);
             this.egroup=this.main.physics.add.group();
             this.main.sound.play(AudioKey.LOON,{loop:true});
+            
 
             this.main.scale.resize(800,600);
+
+
+            this.board.ground.setCollisionBetween(1,100);
+            this.board.box.setCollisionBetween(0,100);
 
             this.board.ground.fill(Terrain.EMPTY,0,0,w,h);
             this.board.ground.fill(Terrain.TREE,0,0,w,1);
@@ -381,10 +386,49 @@ export class BoxEnv extends Env<{
                 }
                 this.board.ground.putTileAt(Terrain.CACTUS,x,y);
             }
+            this.main.physics.world.on("worldstep",(d:number)=>{
+                if(this.player.input.pivot!==undefined){
+                    this.player.start(this.player.input.pivot);
+                    //this.player.input.pivot=undefined;
+                }
+                else{
+                    this.player.stop();
+                }
+                if(this.player.input.bubble!==undefined){
+                    let ok=false;
+                    switch(this.player.input.bubble){
+                    case BubbleType.BLUE:
+                        if(this.bluecd<100)break;
+                        ok=true;
+                        this.bluecd=0;
+                        break;
+                    case BubbleType.RED:
+                        if(this.redcd<100)break;
+                        ok=true;
+                        this.redcd=0;
+                        break;
+                    default:break;
+                    }
+                    if(ok){
+                        const b=new Bubble(this.board,this.player.input.bubble);
+                        b.setUnit(this.board.unit(this.player.getPosition()));
+                        this.start(b,2000);
+                    }
+                    this.player.input.bubble=undefined;
+                }
+                if(this.player.input.skill!==undefined){
+                    this.player.input.skill=undefined;
+                }
+            });
 
-            //const ee=new PlayerInput();
             this.keys=Keyboard.getKeyboardKeys(this.main);
-            this.keys.A.on("down",()=>{
+            this.keys.Q.on("down",()=>{
+                this.player.input.bubble=BubbleType.BLUE;
+            });
+            this.keys.E.on("down",()=>{
+                this.player.input.bubble=BubbleType.RED;
+            });
+            /*this.keys.A.on("down",()=>{
                 this.player.pivot=Pivot.W;
             });
             this.keys.D.on("down",()=>{
@@ -395,13 +439,14 @@ export class BoxEnv extends Env<{
             });
             this.keys.S.on("down",()=>{
                 this.player.pivot=Pivot.S;
-            });
+            });*/
 
             this.player=new Player(this.board,pkey);
             this.player.setUnit({x:10,y:10});
             this.player.activate();
             this.player.sprite.body.setSize(10,10,false);
             this.player.sprite.body.setOffset(19,45);
+
             this.main.physics.add.collider(this.player.sprite,this.board.box);
             this.main.physics.add.collider(this.player.sprite,this.board.ground);
 
@@ -422,13 +467,22 @@ export class BoxEnv extends Env<{
                 return;
             }
             
-            if(this.keys.A.isUp&&this.keys.D.isUp&&this.keys.W.isUp&&this.keys.S.isUp){
+            if(this.keys.A.isDown){
+                this.player.input.pivot=Pivot.W;
+            }
+            else if(this.keys.D.isDown){
+                this.player.input.pivot=Pivot.E;
+            }
+            else if(this.keys.W.isDown){
+                this.player.input.pivot=Pivot.N;
+            }
+            else if(this.keys.S.isDown){
+                this.player.input.pivot=Pivot.S;
+            }
+            else{
                 this.player.input.pivot=undefined;
-            }else{
-                this.player.input.pivot=this.player.pivot;
             }
             
-
 
             this.main.physics.overlap(this.player.sprite,this.egroup,(a,b)=>{
                 if(this.player.no)return;
@@ -455,7 +509,7 @@ export class BoxEnv extends Env<{
                 }
             });
             const bo=this.board.box;
-            this.main.physics.overlap(bo,this.egroup!,(b,a)=>{
+            this.main.physics.overlap(bo,this.egroup,(b,a)=>{
                 a=a as Phaser.Tilemaps.Tile;
                 b=b as Phaser.Types.Physics.Arcade.GameObjectWithBody;
                 
@@ -533,7 +587,8 @@ export class BoxEnv extends Env<{
                 default:break;
                 }
             });
-            this.egroup.clear();
+            this.main.physics.world.disable(this.egroup);
+            //this.egroup.clear();
         });
         this.launch();
     }
@@ -563,6 +618,7 @@ export class BoxEnv extends Env<{
                     const x=b.getUnit().add(v);
                     if(!this.board.check(x))return;
                     const l=new Explosion(this.board,ExplosionType.O);
+                    this.egroup.add(l.sprite);
                     l.setUnit(x);
                     l.activate();
                     this.main.time.addEvent({
@@ -580,6 +636,7 @@ export class BoxEnv extends Env<{
                     const x=b.getUnit().add(v);
                     if(!this.board.check(x))return;
                     const l=new Explosion(this.board,ExplosionType.RED);
+                    this.egroup.add(l.sprite);
                     l.setUnit(x);
                     l.activate();
                     this.main.time.addEvent({
@@ -594,6 +651,7 @@ export class BoxEnv extends Env<{
                 const x=b.getUnit().add(v);
                 if(!this.board.check(x))return;
                 const l=new Explosion(this.board,ExplosionType.O);
+                this.egroup.add(l.sprite);
                 l.setUnit(x);
                 l.activate();
                 this.main.time.addEvent({
@@ -607,6 +665,7 @@ export class BoxEnv extends Env<{
         case BubbleType.GREEN:
             for(let i=0;i<this.board.map.width;i++){
                 const l=new Explosion(this.board,ExplosionType.O);
+                this.egroup.add(l.sprite);
                 l.setUnit(new Phaser.Math.Vector2(i,b.getUnit().y));
                 l.activate();
                 this.main.time.addEvent({
@@ -621,6 +680,7 @@ export class BoxEnv extends Env<{
                     continue;
                 }
                 const l=new Explosion(this.board,ExplosionType.O);
+                this.egroup.add(l.sprite);
                 l.setUnit(new Phaser.Math.Vector2(b.getUnit().x,j));
                 l.activate();
                 this.main.time.addEvent({
@@ -636,6 +696,7 @@ export class BoxEnv extends Env<{
                 const x=b.getUnit().add(v);
                 if(!this.board.check(x))return;
                 const l=new Explosion(this.board,ExplosionType.BLACK);
+                this.egroup.add(l.sprite);
                 l.setUnit(x);
                 l.activate();
                 this.main.time.addEvent({
@@ -652,6 +713,7 @@ export class BoxEnv extends Env<{
                 if(!this.board.check(x))return;
                 if(!this.board.hasBox(x))return;
                 const l=new Explosion(this.board,ExplosionType.RED);
+                this.egroup.add(l.sprite);
                 l.setUnit(x);
                 l.activate();
                 this.main.time.addEvent({

@@ -146,17 +146,20 @@ export class Start extends SysScene<{
                     repeat:-1
                 });
             }
-            const p=[Pivot.S,Pivot.W,Pivot.E,Pivot.N];
-            for(let i=0;i<p.length;i++){
-                this.anims.create({
-                    key:`${PlayerKey.BOY}${p[i]}`,
-                    frames:this.anims.generateFrameNumbers(PlayerKey.BOY,{
-                        start:i*4,
-                        end:i*4+3
-                    }),
-                    frameRate:6,
-                    repeat:-1
-                });
+            const ps=[Pivot.S,Pivot.W,Pivot.E,Pivot.N];
+            const ks=[PlayerKey.BOY,PlayerKey.GIRL,PlayerKey.BLUEBOY,PlayerKey.BLUEGIRL];
+            for(let j=0;j<ks.length;j++){
+                for(let i=0;i<ps.length;i++){
+                    this.anims.create({
+                        key:`${ks[j]}${ps[i]}`,
+                        frames:this.anims.generateFrameNumbers(ks[j],{
+                            start:i*4,
+                            end:i*4+3
+                        }),
+                        frameRate:6,
+                        repeat:-1
+                    });
+                }
             }
             this.sound.add(AudioKey.LOON);
             this.sound.add(AudioKey.EXPLO);
@@ -271,7 +274,7 @@ export class Choose extends SysScene<{
         this.r=r;
     }
     create(){
-        this.add.tileSprite(0,0,400,800,SpriteKey.GRASS,1).setOrigin(0,0);
+        this.add.tileSprite(0,0,400,600,SpriteKey.GRASS,2).setOrigin(0,0);
         this.sprite=this.add.sprite(200,300,PlayerKey.BOY,0);
         const k=Keyboard.getKeyboardKeys(this);
         this.prv=k[this.l];
@@ -369,7 +372,7 @@ export class Mgr{
             this.start.deactivate();
             const choose=new Choose("A","D");
             choose.rect=new Phaser.Geom.Rectangle(0,0,400,800);
-            this.start.scale.resize(400,800);
+            this.start.scale.resize(400,600);
             this.game.scene.add("choose",choose,true);
             
             const k=await choose.ready();
