@@ -177,6 +177,7 @@ export class Player extends BasePhysicsModel{
     blink:Phaser.Time.TimerEvent;
     input:PlayerInput;
     key:PlayerKey;
+    life:number;
     constructor(board:Board,key:PlayerKey,txt:string){
         super(board,board.scene.physics.add.sprite(0,0,key).setOrigin(0.5,0.7));
         this.pivot=Pivot.S;
@@ -185,6 +186,7 @@ export class Player extends BasePhysicsModel{
         this.no=false;
         this.input=new PlayerInput();
         this.key=key;
+        this.life=0;
         this.blink=board.scene.time.addEvent({
             delay:150,
             loop:true,
@@ -810,6 +812,8 @@ export class PVPEnv extends Env<{
     blink!:Phaser.Time.TimerEvent;
     keys!:Record<ValidKeyCodes,Phaser.Input.Keyboard.Key>;
     gens:number;
+    players:Map<number,Player>;
+    newi:number;
     constructor(main:EnvScene,s:EnvScene,pk1:PlayerKey,pk2:PlayerKey){
         super(main,s);
         this.main=main;
@@ -819,11 +823,14 @@ export class PVPEnv extends Env<{
         this.bluecd=0;
         this.redcd=0;
         this.gens=0;
+        this.players=new Map();
+        this.newi=0;
 
         this.s.myEvents.on("create",()=>{
 
             this.s.add.tileSprite(0,0,200,600,SpriteKey.GRASS,0).setOrigin(0,0);
-            this.text=this.s.add.text(100,100,"0").setOrigin(0.5,0.5).setColor("#fff000").setFontSize(20);
+            this.s.add.tileSprite(200,0,200,600,SpriteKey.GRASS,2).setOrigin(0,0);
+            //this.text=this.s.add.text(100,100,"0").setOrigin(0.5,0.5).setColor("#fff000").setFontSize(20);
             this.timebar=new Bar(this.s);
             this.timebar.setMax(180000);
             this.timebar.setColor(0xffffff);
@@ -856,7 +863,7 @@ export class PVPEnv extends Env<{
             b.setSize(100,50);
             b.activate();
             
-            this.s.cameras.main.setViewport(600,0,200,600);
+            this.s.cameras.main.setViewport(500,0,400,600);
         });
 
         this.main.myEvents.on("create",()=>{
@@ -868,7 +875,7 @@ export class PVPEnv extends Env<{
             this.main.sound.play(AudioKey.LOON,{loop:true});
             
 
-            this.main.scale.resize(800,600);
+            this.main.scale.resize(1400,600);
 
 
             this.board.ground.setCollisionBetween(1,100);
@@ -936,29 +943,40 @@ export class PVPEnv extends Env<{
             this.keys.E.on("down",()=>{
                 this.player1.input.bubble=BubbleType.RED;
             });
+            this.keys.N.on("down",()=>{
+                this.player2.input.bubble=BubbleType.BLUE;
+            });
+            this.keys.M.on("down",()=>{
+                this.player2.input.bubble=BubbleType.RED;
+            });
             
 
             this.player1=new Player(this.board,pk1,"Player1");
-            this.player1.setUnit({x:10,y:10});
+            this.player1.setUnit({x:7,y:7});
             this.player1.activate();
             this.player1.sprite.body.setSize(10,10,false);
             this.player1.sprite.body.setOffset(19,45);
 
             this.player2=new Player(this.board,pk2,"Player2");
-            this.player2.setUnit({x:10,y:10});
+            this.player2.setUnit({x:14,y:14});
             this.player2.activate();
             this.player2.sprite.body.setSize(10,10,false);
             this.player2.sprite.body.setOffset(19,45);
 
+            this.record(this.player1);
+            this.record(this.player2);
+
+            this.pgroup.add(this.player1.sprite);
+            this.pgroup.add(this.player2.sprite);
 
             this.main.physics.add.collider(this.pgroup,this.board.box);
             this.main.physics.add.collider(this.pgroup,this.board.ground);
 
             this.gen();
 
-            this.main.cameras.addExisting(this.player1.cam(500,600),true);
-            const c=this.main.cameras.addExisting(this.player2.cam(500,600))!;
-            c.setViewport(900,0,500,600);
+            this.main.cameras.remove(this.main.cameras.main);
+            this.player1.cam(500,600).setViewport(0,0,500,600);
+            this.player2.cam(500,600).setViewport(900,0,500,600);
         });
         this.main.myEvents.on("update",(t,delta)=>{
             this.time=Math.max(0,this.time-delta);
@@ -1006,28 +1024,39 @@ export class PVPEnv extends Env<{
             }
             
 
-            this.main.physics.overlap(this.player1.sprite,this.egroup,(a,b)=>{
-                if(this.player1.no)return;
+            this.main.physics.overlap(this.pgroup,this.egroup,(a,b)=>{
+                
                 a=a as Phaser.Types.Physics.Arcade.GameObjectWithBody;
                 b=b as Phaser.Types.Physics.Arcade.GameObjectWithBody;
-                this.player1.setNo(true);
+                const player=this.getPlayer(a);
+                if(player.no)return;
+                player.setNo(true);
                 this.main.time.addEvent({
                     delay:1000,
                     callback:()=>{
-                        this.player1.setNo(false);
+                        player.setNo(false);
                     }
                 });
                 switch(b.state){
                 case ExplosionType.O:
-                    this.upd(-1);
+                    player.life--;
                     break;
                 case ExplosionType.RED:
-                    this.upd(-2);
+                    player.life-=2;
                     break;
                 case ExplosionType.BLACK:
-                    this.upd(-3);
+                    player.life-=3;
                     break;
                 default:break;
+                }
+                if(player.life<=0){
+                    this.players.delete(a.state as number);
+                    if(player===this.player1){
+                        this.done({winner:"Player2"});
+                    }
+                    else if(player===this.player2){
+                        this.done({winner:"Player1"});
+                    }
                 }
             });
             const bo=this.board.box;
@@ -1038,7 +1067,7 @@ export class PVPEnv extends Env<{
                 switch(a.index){
                 case BoxType.O:
                     bo.putTileAt(-1,a.x,a.y);
-                    this.upd(1);
+                    //this.upd(1);
                     break;
                 case BoxType.N:
                     if(b.state===ExplosionType.O){
@@ -1046,7 +1075,7 @@ export class PVPEnv extends Env<{
                     }
                     else{
                         bo.putTileAt(-1,a.x,a.y);
-                        this.upd(1);
+                        //this.upd(1);
                     }
                     break;
                 case BoxType.SILVER:
@@ -1058,40 +1087,40 @@ export class PVPEnv extends Env<{
                     }
                     else{
                         bo.putTileAt(-1,a.x,a.y);
-                        this.upd(1);
+                        //this.upd(1);
                     }
                     break;
                 case BoxType.BLUE:
                     bo.putTileAt(-1,a.x,a.y);
-                    this.upd(1);
+                    //this.upd(1);
                     const x=new Bubble(this.board,BubbleType.BLUE);
                     x.setUnit(a);
                     this.start(x,2000);
                     break;
                 case BoxType.RED:
                     bo.putTileAt(-1,a.x,a.y);
-                    this.upd(1);
+                    //this.upd(1);
                     const y=new Bubble(this.board,BubbleType.RED);
                     y.setUnit(a);
                     this.start(y,2000);
                     break;
                 case BoxType.BLACK:
                     bo.putTileAt(-1,a.x,a.y);
-                    this.upd(1);
+                    //this.upd(1);
                     const z=new Bubble(this.board,BubbleType.BLACK);
                     z.setUnit(a);
                     this.start(z,2000);
                     break;
                 case BoxType.GREEN:
                     bo.putTileAt(-1,a.x,a.y);
-                    this.upd(1);
+                    //this.upd(1);
                     const w=new Bubble(this.board,BubbleType.GREEN);
                     w.setUnit(a);
                     this.start(w,2000);
                     break;
                 case BoxType.PURPLE:
                     bo.putTileAt(-1,a.x,a.y);
-                    this.upd(1);
+                    //this.upd(1);
                     const v=new Bubble(this.board,BubbleType.PURPLE);
                     v.setUnit(a);
                     this.start(v,2000);
@@ -1099,12 +1128,12 @@ export class PVPEnv extends Env<{
                 case BoxType.DARK:
                     if(b.state===ExplosionType.RED||b.state===ExplosionType.BLACK){
                         bo.putTileAt(-1,a.x,a.y);
-                        this.upd(1);
+                        //this.upd(1);
                     }
                     break;
                 case BoxType.GOLD:
                     bo.putTileAt(-1,a.x,a.y);
-                    this.upd(2);
+                    //this.upd(2);
                     break;
                 default:break;
                 }
@@ -1115,9 +1144,6 @@ export class PVPEnv extends Env<{
         this.launch();
     }
 
-    upd(v:number){
-        this.text.setText((this.score+=v).toString());
-    }
     start(b:Bubble,s:number){
         b.activate();
         b.sprite.play(`${SpriteKey.BUB}${b.type}`);
@@ -1279,6 +1305,15 @@ export class PVPEnv extends Env<{
                 }
             }
         }
+    }
+    record(p:Player){
+        this.players.set(++this.newi,p);
+        p.sprite.state=this.newi;
+    }
+    getPlayer(sprite:Phaser.Types.Physics.Arcade.GameObjectWithBody){
+        const r=this.players.get(sprite.state as number);
+        if(r===undefined)throw new Error("Player not found");
+        return r;
     }
     quitResult(){
        return {winner:"None"};
