@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import EventEmitter,{ValidEventTypes} from "eventemitter3";
 
-import {BubbleType,Pivot,Env,BoxEnv} from "./model";
+import {BubbleType,Pivot,Env,BoxEnv,PVPEnv} from "./model";
 import {Bar,Button} from "./ui";
 import {SceneUtils} from "./utils";
 import {Keyboard,ValidKeyCodes} from "./ctrl";
@@ -172,18 +172,27 @@ export class Start extends SysScene<{
         b.defaults();
         b.setText("Box");
         b.setPosition(300,350);
-        b.setSize(200,100);
+        b.setSize(200,70);
         //b.setDepth(1);
         b.activate();
-        
+
         const b1=new Button(this,()=>{
-            this.myEvents.emit("help");
+            this.myEvents.emit("pvp");
         });
         b1.defaults();
-        b1.setText("Help");
-        b1.setPosition(300,450);
-        b1.setSize(200,100);
+        b1.setText("PVP");
+        b1.setPosition(300,430);
+        b1.setSize(200,70);
         b1.activate();
+        
+        const b2=new Button(this,()=>{
+            this.myEvents.emit("help");
+        });
+        b2.defaults();
+        b2.setText("Help");
+        b2.setPosition(300,510);
+        b2.setSize(200,100);
+        b2.activate();
         
     }
     
@@ -268,7 +277,7 @@ export class Choose extends SysScene<{
     r:ValidKeyCodes;
     blink!:Phaser.Time.TimerEvent;
     constructor(l:ValidKeyCodes,r:ValidKeyCodes){
-        super();
+        super(`vs${Math.random()*100000}`);
         this.i=0;
         this.l=l;
         this.r=r;
@@ -282,7 +291,7 @@ export class Choose extends SysScene<{
         const b=new Button(this,()=>{
             this.blink.paused=true;
             this.sprite.setVisible(true);
-            //SceneUtils.pause(this);
+            SceneUtils.pause(this);
             this.myEvents.emit("done",Choose.keys[this.i]);
         });
         b.defaults();
@@ -392,7 +401,38 @@ export class Mgr{
             this.env.on("pause",()=>{
                 this.pause.activate();
             });
+        });
+        this.start.myEvents.on("pvp",async()=>{
+            this.start.deactivate();
+            const ch1=new Choose("A","D");
+            ch1.rect=new Phaser.Geom.Rectangle(0,0,400,600);
+            this.start.scale.resize(800,600);
+            this.game.scene.add("choose",ch1,true);
             
+            const ch2=new Choose("LEFT","RIGHT");
+            ch2.rect=new Phaser.Geom.Rectangle(400,0,400,600);
+
+            this.game.scene.add("choose2",ch2,true);
+
+            const k1=await ch1.ready();
+            const k2=await ch2.ready();
+            SceneUtils.remove(ch1);
+            SceneUtils.remove(ch2);
+
+            const main=new EnvScene("main");
+            this.game.scene.add("main",main);
+            const s=new EnvScene("s");
+            this.game.scene.add("s",s);
+            this.env=new PVPEnv(main,s,k1,k2);
+            this.env.on("done",r=>{
+                this.gameover.text=r.toString();
+                this.gameover.rect=new Phaser.Geom.Rectangle(200,100,400,400);
+                SceneUtils.launch(this.gameover);
+            });
+            this.pause.rect=new Phaser.Geom.Rectangle(200,100,400,400);
+            this.env.on("pause",()=>{
+                this.pause.activate();
+            });
         });
         this.start.myEvents.on("help",()=>{
             this.help.activate();
@@ -421,7 +461,7 @@ export class Mgr{
             physics:{
                 default:"arcade",
                 arcade:{
-                    debug:false
+                    debug:true
                 }
             },
             scale:{

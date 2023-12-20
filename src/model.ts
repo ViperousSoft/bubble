@@ -119,9 +119,6 @@ abstract class BasePhysicsModel{
     setVelocity({x,y}:Phaser.Types.Math.Vector2Like){
         this.sprite.setVelocity(x||0,y);
     }
-    getPosition(){
-        return this.sprite.body.center;
-    }
 }
 
 export class BoardLike extends BasePhysicsModel{
@@ -180,19 +177,20 @@ export class Player extends BasePhysicsModel{
     blink:Phaser.Time.TimerEvent;
     input:PlayerInput;
     key:PlayerKey;
-    constructor(board:Board,key:PlayerKey){
+    constructor(board:Board,key:PlayerKey,txt:string){
         super(board,board.scene.physics.add.sprite(0,0,key).setOrigin(0.5,0.7));
         this.pivot=Pivot.S;
         this.walking=false;
-        this.text=board.scene.add.text(0,0,"").setDepth(2).setOrigin(0.5,0.5).setFontStyle("bold");
+        this.text=board.scene.add.text(0,0,txt).setDepth(2).setOrigin(0.5,0.5).setFontStyle("bold");
         this.no=false;
         this.input=new PlayerInput();
         this.key=key;
         this.blink=board.scene.time.addEvent({
-            delay:100,
+            delay:150,
             loop:true,
+            paused:true,
             callback:()=>{
-                this.sprite.setVisible(!this.no);
+                this.sprite.setVisible(!this.sprite.visible);
             }
         });
         /*this.input.on("walk",p=>{
@@ -245,6 +243,20 @@ export class Player extends BasePhysicsModel{
         this.setVelocity({x:0,y:0});
         this.sprite.stop();
         this.sprite.setFrame(this.board.scene.anims.get(`${this.key}${this.pivot}`).getFrameAt(0).frame);
+    }
+    setNo(b:boolean){
+        if(b==this.no)return;
+        this.no=b;
+        if(b){
+            this.blink.paused=false;
+        }
+        else{
+            this.blink.paused=true;
+            this.sprite.setVisible(true);
+        }
+    }
+    getPosition(){
+        return new Phaser.Math.Vector2(this.sprite.getTopLeft().x!+24,this.sprite.getTopLeft().y!+50);
     }
 }
 
@@ -411,6 +423,7 @@ export class BoxEnv extends Env<{
                     }
                     if(ok){
                         const b=new Bubble(this.board,this.player.input.bubble);
+                        //console.log(this.player.getPosition());
                         b.setUnit(this.board.unit(this.player.getPosition()));
                         this.start(b,2000);
                     }
@@ -441,11 +454,12 @@ export class BoxEnv extends Env<{
                 this.player.pivot=Pivot.S;
             });*/
 
-            this.player=new Player(this.board,pkey);
+            this.player=new Player(this.board,pkey,"Player");
             this.player.setUnit({x:10,y:10});
             this.player.activate();
             this.player.sprite.body.setSize(10,10,false);
             this.player.sprite.body.setOffset(19,45);
+
 
             this.main.physics.add.collider(this.player.sprite,this.board.box);
             this.main.physics.add.collider(this.player.sprite,this.board.ground);
@@ -488,11 +502,11 @@ export class BoxEnv extends Env<{
                 if(this.player.no)return;
                 a=a as Phaser.Types.Physics.Arcade.GameObjectWithBody;
                 b=b as Phaser.Types.Physics.Arcade.GameObjectWithBody;
-                this.setNo(this.player,true);
+                this.player.setNo(true);
                 this.main.time.addEvent({
                     delay:1000,
                     callback:()=>{
-                        this.setNo(this.player,false);
+                        this.player.setNo(false);
                     }
                 });
                 switch(b.state){
@@ -587,8 +601,8 @@ export class BoxEnv extends Env<{
                 default:break;
                 }
             });
-            this.main.physics.world.disable(this.egroup);
-            //this.egroup.clear();
+            //this.main.physics.world.disable(this.egroup);
+            this.egroup.clear();
         });
         this.launch();
     }
@@ -727,7 +741,7 @@ export class BoxEnv extends Env<{
         default:break;
         }
     }
-    setNo(p:Player,b:boolean){
+    /*setNo(p:Player,b:boolean){
         if(b==p.no)return;
         p.no=b;
         if(b){
@@ -737,11 +751,13 @@ export class BoxEnv extends Env<{
             p.blink.paused=true;
             p.sprite.setVisible(true);
         }
-    }
+    }*/
     gen(){
         this.gens++;
         for(let i=0;i<this.board.map.width;i++){
             for(let j=0;j<this.board.map.height;j++){
+                console.log(this.player.getPosition());
+                console.log(this.board.cent({x:i,y:j}));
                 if(this.player.getPosition().distance(this.board.cent({x:i,y:j}))<2*this.board.map.tileWidth)continue;
                 const t=this.board.ground.getTileAt(i,j,true).index;
                 if(t!=Terrain.EMPTY)continue;
@@ -771,8 +787,503 @@ export class BoxEnv extends Env<{
     }
 }
 
-class PVPEnv{
+export class PVPEnv extends Env<{
+    winner:string
+}>{
     
+    
+    main:EnvScene;
+    s:EnvScene;
+    player1!:Player;
+    player2!:Player;
+    board!:Board;
+    egroup!:Phaser.Physics.Arcade.Group;
+    pgroup!:Phaser.Physics.Arcade.Group;
+    score:number;
+    time:number;
+    bluecd:number;
+    redcd:number;
+    text!:Phaser.GameObjects.Text;
+    timebar!:Bar;
+    pb!:Plate;
+    pr!:Plate;
+    blink!:Phaser.Time.TimerEvent;
+    keys!:Record<ValidKeyCodes,Phaser.Input.Keyboard.Key>;
+    gens:number;
+    constructor(main:EnvScene,s:EnvScene,pk1:PlayerKey,pk2:PlayerKey){
+        super(main,s);
+        this.main=main;
+        this.s=s;
+        this.score=0;
+        this.time=0;
+        this.bluecd=0;
+        this.redcd=0;
+        this.gens=0;
+
+        this.s.myEvents.on("create",()=>{
+
+            this.s.add.tileSprite(0,0,200,600,SpriteKey.GRASS,0).setOrigin(0,0);
+            this.text=this.s.add.text(100,100,"0").setOrigin(0.5,0.5).setColor("#fff000").setFontSize(20);
+            this.timebar=new Bar(this.s);
+            this.timebar.setMax(180000);
+            this.timebar.setColor(0xffffff);
+            this.timebar.setPosition(50,200);
+            this.timebar.setLineWidth(2);
+            this.timebar.setSize(100,20);
+            this.timebar.activate();
+            
+            this.pb=new Plate(this.s);
+            this.pb.setColor(0x5050ff);
+            this.pb.setPosition(50,400);
+            this.pb.setSize(25);
+            this.pb.setMax(100);
+            this.pb.activate();
+
+            this.pr=new Plate(this.s);
+            this.pr.setColor(0xff0000);
+            this.pr.setPosition(150,400);
+            this.pr.setSize(25);
+            this.pr.setMax(100);
+            this.pr.activate();
+            
+            
+            const b=new Button(this.s,()=>{
+                this.pause();
+            });
+            b.defaults();
+            b.setText("Pause");
+            b.setPosition(50,300);
+            b.setSize(100,50);
+            b.activate();
+            
+            this.s.cameras.main.setViewport(600,0,200,600);
+        });
+
+        this.main.myEvents.on("create",()=>{
+            
+            const w=20,h=20;
+            this.board=new Board(this.main,w,h);
+            this.egroup=this.main.physics.add.group();
+            this.pgroup=this.main.physics.add.group();
+            this.main.sound.play(AudioKey.LOON,{loop:true});
+            
+
+            this.main.scale.resize(800,600);
+
+
+            this.board.ground.setCollisionBetween(1,100);
+            this.board.box.setCollisionBetween(0,100);
+
+            this.board.ground.fill(Terrain.EMPTY,0,0,w,h);
+            this.board.ground.fill(Terrain.TREE,0,0,w,1);
+            this.board.ground.fill(Terrain.TREE,0,h-1,w,1);
+            this.board.ground.fill(Terrain.TREE,0,0,1,h);
+            this.board.ground.fill(Terrain.TREE,w-1,0,1,h);
+
+            for(let i=0;i<20;i++){
+                const x=Math.floor(Math.random()*(w-2)+1);
+                const y=Math.floor(Math.random()*(h-2)+1);
+                if(x==10&&y==10){
+                    i--;
+                    continue;
+                }
+                this.board.ground.putTileAt(Terrain.CACTUS,x,y);
+            }
+            this.main.physics.world.on("worldstep",(d:number)=>{
+                for(const player of [this.player1,this.player2]){
+                    if(player.input.pivot!==undefined){
+                        player.start(player.input.pivot);
+                        //this.player.input.pivot=undefined;
+                    }
+                    else{
+                        player.stop();
+                    }
+                    if(player.input.bubble!==undefined){
+                        let ok=false;
+                        switch(player.input.bubble){
+                        case BubbleType.BLUE:
+                            if(this.bluecd<100)break;
+                            ok=true;
+                            this.bluecd=0;
+                            break;
+                        case BubbleType.RED:
+                            if(this.redcd<100)break;
+                            ok=true;
+                            this.redcd=0;
+                            break;
+                        default:break;
+                        }
+                        if(ok){
+                            const b=new Bubble(this.board,player.input.bubble);
+                            //console.log(this.player.getPosition());
+                            b.setUnit(this.board.unit(player.getPosition()));
+                            this.start(b,2000);
+                        }
+                        player.input.bubble=undefined;
+                    }
+                    if(player.input.skill!==undefined){
+                        player.input.skill=undefined;
+                    }
+
+                }
+                
+            });
+
+            this.keys=Keyboard.getKeyboardKeys(this.main);
+            this.keys.Q.on("down",()=>{
+                this.player1.input.bubble=BubbleType.BLUE;
+            });
+            this.keys.E.on("down",()=>{
+                this.player1.input.bubble=BubbleType.RED;
+            });
+            
+
+            this.player1=new Player(this.board,pk1,"Player1");
+            this.player1.setUnit({x:10,y:10});
+            this.player1.activate();
+            this.player1.sprite.body.setSize(10,10,false);
+            this.player1.sprite.body.setOffset(19,45);
+
+            this.player2=new Player(this.board,pk2,"Player2");
+            this.player2.setUnit({x:10,y:10});
+            this.player2.activate();
+            this.player2.sprite.body.setSize(10,10,false);
+            this.player2.sprite.body.setOffset(19,45);
+
+
+            this.main.physics.add.collider(this.pgroup,this.board.box);
+            this.main.physics.add.collider(this.pgroup,this.board.ground);
+
+            this.gen();
+
+            this.main.cameras.addExisting(this.player1.cam(500,600),true);
+            const c=this.main.cameras.addExisting(this.player2.cam(500,600))!;
+            c.setViewport(900,0,500,600);
+        });
+        this.main.myEvents.on("update",(t,delta)=>{
+            this.time=Math.max(0,this.time-delta);
+            this.timebar.setCur(this.time);
+            this.bluecd=Math.min(100,this.bluecd+delta*0.05);
+            this.pb.setCur(this.bluecd);
+            this.redcd=Math.min(100,this.redcd+delta*0.04);
+            this.pr.setCur(this.redcd);
+
+            /*if(this.timebar.cur==0){
+                this.done({score:this.score});
+                return;
+            }*/
+            
+            if(this.keys.A.isDown){
+                this.player1.input.pivot=Pivot.W;
+            }
+            else if(this.keys.D.isDown){
+                this.player1.input.pivot=Pivot.E;
+            }
+            else if(this.keys.W.isDown){
+                this.player1.input.pivot=Pivot.N;
+            }
+            else if(this.keys.S.isDown){
+                this.player1.input.pivot=Pivot.S;
+            }
+            else{
+                this.player1.input.pivot=undefined;
+            }
+
+            if(this.keys.UP.isDown){
+                this.player2.input.pivot=Pivot.N;
+            }
+            else if(this.keys.DOWN.isDown){
+                this.player2.input.pivot=Pivot.S;
+            }
+            else if(this.keys.LEFT.isDown){
+                this.player2.input.pivot=Pivot.W;
+            }
+            else if(this.keys.RIGHT.isDown){
+                this.player2.input.pivot=Pivot.E;
+            }
+            else{
+                this.player2.input.pivot=undefined;
+            }
+            
+
+            this.main.physics.overlap(this.player1.sprite,this.egroup,(a,b)=>{
+                if(this.player1.no)return;
+                a=a as Phaser.Types.Physics.Arcade.GameObjectWithBody;
+                b=b as Phaser.Types.Physics.Arcade.GameObjectWithBody;
+                this.player1.setNo(true);
+                this.main.time.addEvent({
+                    delay:1000,
+                    callback:()=>{
+                        this.player1.setNo(false);
+                    }
+                });
+                switch(b.state){
+                case ExplosionType.O:
+                    this.upd(-1);
+                    break;
+                case ExplosionType.RED:
+                    this.upd(-2);
+                    break;
+                case ExplosionType.BLACK:
+                    this.upd(-3);
+                    break;
+                default:break;
+                }
+            });
+            const bo=this.board.box;
+            this.main.physics.overlap(bo,this.egroup,(b,a)=>{
+                a=a as Phaser.Tilemaps.Tile;
+                b=b as Phaser.Types.Physics.Arcade.GameObjectWithBody;
+                
+                switch(a.index){
+                case BoxType.O:
+                    bo.putTileAt(-1,a.x,a.y);
+                    this.upd(1);
+                    break;
+                case BoxType.N:
+                    if(b.state===ExplosionType.O){
+                        bo.putTileAt(BoxType.O,a.x,a.y);
+                    }
+                    else{
+                        bo.putTileAt(-1,a.x,a.y);
+                        this.upd(1);
+                    }
+                    break;
+                case BoxType.SILVER:
+                    if(b.state===ExplosionType.O){
+                        bo.putTileAt(BoxType.N,a.x,a.y);
+                    }
+                    else if(b.state===ExplosionType.RED){
+                        bo.putTileAt(BoxType.O,a.x,a.y);
+                    }
+                    else{
+                        bo.putTileAt(-1,a.x,a.y);
+                        this.upd(1);
+                    }
+                    break;
+                case BoxType.BLUE:
+                    bo.putTileAt(-1,a.x,a.y);
+                    this.upd(1);
+                    const x=new Bubble(this.board,BubbleType.BLUE);
+                    x.setUnit(a);
+                    this.start(x,2000);
+                    break;
+                case BoxType.RED:
+                    bo.putTileAt(-1,a.x,a.y);
+                    this.upd(1);
+                    const y=new Bubble(this.board,BubbleType.RED);
+                    y.setUnit(a);
+                    this.start(y,2000);
+                    break;
+                case BoxType.BLACK:
+                    bo.putTileAt(-1,a.x,a.y);
+                    this.upd(1);
+                    const z=new Bubble(this.board,BubbleType.BLACK);
+                    z.setUnit(a);
+                    this.start(z,2000);
+                    break;
+                case BoxType.GREEN:
+                    bo.putTileAt(-1,a.x,a.y);
+                    this.upd(1);
+                    const w=new Bubble(this.board,BubbleType.GREEN);
+                    w.setUnit(a);
+                    this.start(w,2000);
+                    break;
+                case BoxType.PURPLE:
+                    bo.putTileAt(-1,a.x,a.y);
+                    this.upd(1);
+                    const v=new Bubble(this.board,BubbleType.PURPLE);
+                    v.setUnit(a);
+                    this.start(v,2000);
+                    break;
+                case BoxType.DARK:
+                    if(b.state===ExplosionType.RED||b.state===ExplosionType.BLACK){
+                        bo.putTileAt(-1,a.x,a.y);
+                        this.upd(1);
+                    }
+                    break;
+                case BoxType.GOLD:
+                    bo.putTileAt(-1,a.x,a.y);
+                    this.upd(2);
+                    break;
+                default:break;
+                }
+            });
+            //this.main.physics.world.disable(this.egroup);
+            this.egroup.clear();
+        });
+        this.launch();
+    }
+
+    upd(v:number){
+        this.text.setText((this.score+=v).toString());
+    }
+    start(b:Bubble,s:number){
+        b.activate();
+        b.sprite.play(`${SpriteKey.BUB}${b.type}`);
+        this.board.scene.time.addEvent({
+            delay:s,
+            callback:()=>{
+                this.pop(b);
+                b.sprite.destroy();
+            }
+        });
+    }
+    pop(b:Bubble){
+        this.main.sound.play("explode");
+        switch(b.type){
+        case BubbleType.BLUE:
+            for(let i=0;i<=2;i++){
+                IterateUtils.iterateX(i,v=>{
+                    const x=b.getUnit().add(v);
+                    if(!this.board.check(x))return;
+                    const l=new Explosion(this.board,ExplosionType.O);
+                    this.egroup.add(l.sprite);
+                    l.setUnit(x);
+                    l.activate();
+                    this.main.time.addEvent({
+                        delay:500,
+                        callback:()=>{
+                            l.sprite.destroy();
+                        }
+                    });
+                });
+            }
+            break;
+        case BubbleType.RED:
+            for(let i=0;i<=1;i++){
+                IterateUtils.iterateX(i,v=>{
+                    const x=b.getUnit().add(v);
+                    if(!this.board.check(x))return;
+                    const l=new Explosion(this.board,ExplosionType.RED);
+                    this.egroup.add(l.sprite);
+                    l.setUnit(x);
+                    l.activate();
+                    this.main.time.addEvent({
+                        delay:500,
+                        callback:()=>{
+                            l.sprite.destroy();
+                        }
+                    });
+                });
+            }
+            IterateUtils.iterateH(1,1,v=>{
+                const x=b.getUnit().add(v);
+                if(!this.board.check(x))return;
+                const l=new Explosion(this.board,ExplosionType.O);
+                this.egroup.add(l.sprite);
+                l.setUnit(x);
+                l.activate();
+                this.main.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            });
+            break;
+        case BubbleType.GREEN:
+            for(let i=0;i<this.board.map.width;i++){
+                const l=new Explosion(this.board,ExplosionType.O);
+                this.egroup.add(l.sprite);
+                l.setUnit(new Phaser.Math.Vector2(i,b.getUnit().y));
+                l.activate();
+                this.main.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            }
+            for(let j=0;j<this.board.map.height;j++){
+                if(j==b.getUnit().y){
+                    continue;
+                }
+                const l=new Explosion(this.board,ExplosionType.O);
+                this.egroup.add(l.sprite);
+                l.setUnit(new Phaser.Math.Vector2(b.getUnit().x,j));
+                l.activate();
+                this.main.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            }
+            break;
+        case BubbleType.BLACK:
+            IterateUtils.iterateX(1,v=>{
+                const x=b.getUnit().add(v);
+                if(!this.board.check(x))return;
+                const l=new Explosion(this.board,ExplosionType.BLACK);
+                this.egroup.add(l.sprite);
+                l.setUnit(x);
+                l.activate();
+                this.main.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            });
+            break;
+        case BubbleType.PURPLE:
+            IterateUtils.iterateO(1,1,v=>{
+                const x=b.getUnit().add(v);
+                if(!this.board.check(x))return;
+                if(!this.board.hasBox(x))return;
+                const l=new Explosion(this.board,ExplosionType.RED);
+                this.egroup.add(l.sprite);
+                l.setUnit(x);
+                l.activate();
+                this.main.time.addEvent({
+                    delay:500,
+                    callback:()=>{
+                        l.sprite.destroy();
+                    }
+                });
+            });
+            break;
+        default:break;
+        }
+    }
+    gen(){
+        this.gens++;
+        for(let i=0;i<this.board.map.width;i++){
+            for(let j=0;j<this.board.map.height;j++){
+                let b=false;
+                for(const player of [this.player1,this.player2]){
+                    if(player.getPosition().distance(this.board.cent({x:i,y:j}))<2*this.board.map.tileWidth){
+                        b=true;
+                        break;
+                    }
+                }
+                if(b)continue;
+                //if(this.player.getPosition().distance(this.board.cent({x:i,y:j}))<2*this.board.map.tileWidth)continue;
+                const t=this.board.ground.getTileAt(i,j,true).index;
+                if(t!=Terrain.EMPTY)continue;
+                if(this.board.hasBox(new Phaser.Math.Vector2(i,j)))continue;
+                if(Math.random()<4/(this.gens+10))continue;
+                //const l=[Math.max(0,0.1*(this.gens-3)),Math.max(0,0.2*(this.gens-2)),Math.max(0,0.3*(this.gens-2)),0.05*(this.gens-1),0.05*(this.gens-1),0.1*this.gens,0.1*this.gens,0.5*this.gens,0.5*Math.sqrt(this.gens)];
+                const l=[this.gens,0,0,1,1,this.gens,1,2,2*this.gens,1,1];
+                const tp=[BoxType.MAN,BoxType.SILVER,BoxType.GOLD,BoxType.DARK,BoxType.PURPLE,BoxType.GREEN,BoxType.BLACK,BoxType.RED,BoxType.BLUE,BoxType.N,BoxType.O];
+                const res=Math.random()*l.reduce((p,a)=>p+a);
+                let s=0;
+                for(let k=0;k<11;k++){
+                    s+=l[k];
+                    if(res<s){
+                        this.board.box.putTileAt(tp[k],i,j,true);
+                        break;
+                    }
+
+                }
+            }
+        }
+    }
+    quitResult(){
+       return {winner:"None"};
+    }
+    reset(){
+        
+    }
 }
-
-
