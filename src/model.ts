@@ -4,6 +4,7 @@ import {EnvScene,SpriteKey,PlayerKey,AudioKey} from "./scene";
 import {IterateUtils,SceneUtils} from "./utils";
 import {Bar,Button,Plate} from "./ui";
 import {Keyboard,ValidKeyCodes} from "./ctrl";
+import e from "express";
 
 export enum Terrain{
     EMPTY,
@@ -44,6 +45,11 @@ export enum SkillType{
     MOVE,
     RELOAD,
     NO
+}
+export enum PotionType{
+    HEAL,
+    ATTACK,
+    SPEED
 }
 
 export class Board{
@@ -139,7 +145,7 @@ export class BoardLike extends BasePhysicsModel{
 export class Bubble extends BoardLike{
     type:BubbleType;
     constructor(board:Board,type:BubbleType){
-        super(board,board.scene.physics.add.sprite(0,0,"bub").setDepth(1));
+        super(board,board.scene.physics.add.sprite(0,0,SpriteKey.BUB).setDepth(1));
         this.type=type;
     }
     
@@ -148,10 +154,17 @@ export class Bubble extends BoardLike{
 export class Explosion extends BoardLike{
     type:ExplosionType;
     constructor(board:Board,type:ExplosionType){
-        super(board,board.scene.physics.add.sprite(0,0,"expl").setDepth(2));
+        super(board,board.scene.physics.add.sprite(0,0,SpriteKey.EXPL,type).setDepth(2));
         this.type=type;
-        this.sprite.setFrame(type);
-        //this.board.scene.egroup!.add(this.sprite);
+        this.sprite.state=type;
+    }
+}
+
+class Potion extends BoardLike{
+    type:PotionType;
+    constructor(board:Board,type:PotionType){
+        super(board,board.scene.physics.add.sprite(0,0,SpriteKey.POTION,type).setDepth(1));
+        this.type=type;
         this.sprite.state=type;
     }
 }
@@ -181,6 +194,7 @@ export class Player extends BasePhysicsModel{
     bluecd:number;
     redcd:number;
     greencd:number;
+    speedtime:number;
     constructor(board:Board,key:PlayerKey,txt:string){
         super(board,board.scene.physics.add.sprite(0,0,key).setOrigin(0.5,0.7));
         this.pivot=Pivot.S;
@@ -193,6 +207,7 @@ export class Player extends BasePhysicsModel{
         this.bluecd=0;
         this.redcd=0;
         this.greencd=0;
+        this.speedtime=0;
         this.blink=board.scene.time.addEvent({
             delay:150,
             loop:true,
@@ -201,13 +216,6 @@ export class Player extends BasePhysicsModel{
                 this.sprite.setVisible(!this.sprite.visible);
             }
         });
-        /*this.input.on("walk",p=>{
-            this.pivot=p;
-            this.sprite.play(`${key}${p}`);
-        });
-        this.input.on("stop",()=>{
-            this.sprite.setFrame(this.board.scene.anims.get(`${key}${this.pivot}`).getFrameAt(0).frame);
-        });*/
     }
     getBaseVelocity(){
         return Player.getBaseVelocity(this.pivot);
@@ -240,7 +248,7 @@ export class Player extends BasePhysicsModel{
         default:break;
         }
 
-        this.setVelocity(this.getBaseVelocity().scale(100));
+        this.setVelocity(this.getBaseVelocity().scale(100).scale(this.speedtime!=0?1.5:1));
         this.sprite.play(`${this.key}${this.pivot}`);
     }
     stop(){
@@ -819,6 +827,7 @@ export class PVPEnv extends Env<{
     board!:Board;
     egroup!:Phaser.Physics.Arcade.Group;
     pgroup!:Phaser.Physics.Arcade.Group;
+    ptngroup!:Phaser.Physics.Arcade.Group;
     //score:number;
     time:number;
     
@@ -928,6 +937,7 @@ export class PVPEnv extends Env<{
             this.board=new Board(this.main,w,h);
             this.egroup=this.main.physics.add.group();
             this.pgroup=this.main.physics.add.group();
+            this.ptngroup=this.main.physics.add.group();
             this.main.sound.play(AudioKey.LOON,{loop:true});
 
             this.main.time.addEvent({
@@ -943,6 +953,13 @@ export class PVPEnv extends Env<{
                     this.gen();
                 },
                 loop:true
+            });
+            this.main.time.addEvent({
+                delay:5000,
+                loop:true,
+                callback:()=>{
+                    this.landPotion(PotionType.SPEED);
+                }
             });
             
 
@@ -1075,6 +1092,7 @@ export class PVPEnv extends Env<{
                 player.bluecd=Math.min(100,player.bluecd+delta*0.05);
                 player.redcd=Math.min(100,player.redcd+delta*0.04);
                 player.greencd=Math.min(100,player.greencd+delta*0.02);
+                player.speedtime=Math.max(0,player.speedtime-delta);
 
                 if(player===this.player1){
                     this.pb.setCur(player.bluecd);
@@ -1273,6 +1291,18 @@ export class PVPEnv extends Env<{
                 default:break;
                 }
             });
+            this.main.physics.overlap(this.pgroup,this.ptngroup,(a,b)=>{
+                a=a as Phaser.Types.Physics.Arcade.GameObjectWithBody;
+                b=b as Phaser.Types.Physics.Arcade.GameObjectWithBody;
+                const p=this.getPlayer(a);
+                switch(b.state){
+                case PotionType.SPEED:
+                    p.speedtime=5000;
+                    break;
+                default:break;
+                }
+                b.destroy();
+            });
             //this.main.physics.world.disable(this.egroup);
             this.egroup.clear();
         });
@@ -1412,14 +1442,7 @@ export class PVPEnv extends Env<{
         this.gens++;
         for(let i=0;i<this.board.map.width;i++){
             for(let j=0;j<this.board.map.height;j++){
-                let b=false;
-                for(const player of this.players.values()){
-                    if(player.getPosition().distance(this.board.cent({x:i,y:j}))<2*this.board.map.tileWidth){
-                        b=true;
-                        break;
-                    }
-                }
-                if(b)continue;
+                if(!this.safe({x:i,y:j}))continue;
                 //if(this.player.getPosition().distance(this.board.cent({x:i,y:j}))<2*this.board.map.tileWidth)continue;
                 const t=this.board.ground.getTileAt(i,j,true).index;
                 if(t!=Terrain.EMPTY)continue;
@@ -1477,5 +1500,25 @@ export class PVPEnv extends Env<{
         this.pgroup.add(p.sprite);
         this.record(p);
         return p;
+    }
+    landPotion(type:PotionType){
+        let x,y;
+        do{
+            x=Math.floor(Math.random()*this.board.map.width);
+            y=Math.floor(Math.random()*this.board.map.height);
+        }while(this.board.ground.getTileAt(x,y).index!=Terrain.EMPTY||!this.safe({x,y}));
+        const p=new Potion(this.board,type);
+        p.setUnit(new Phaser.Math.Vector2(x,y));
+        p.activate();
+        this.ptngroup.add(p.sprite);
+        return p;
+    }
+    safe({x,y}:Phaser.Types.Math.Vector2Like){
+        for(const player of this.players.values()){
+            if(player.getPosition().distance(this.board.cent({x,y}))<2*this.board.map.tileWidth){
+                return false;
+            }
+        }
+        return true;
     }
 }

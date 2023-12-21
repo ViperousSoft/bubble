@@ -14,6 +14,7 @@ import girl2 from "../assets/girl2.png";
 import blk from "../assets/blocks.png";
 import expl from "../assets/explosion.png";
 import box from "../assets/boxes.png";
+import potion from "../assets/potion.png";
 import loon from "../assets/Laura Shigihara - Loonboon.mp3";
 import explode from "../assets/explosion.wav";
 import grass from "../assets/Grass.png";
@@ -26,7 +27,8 @@ export enum SpriteKey{
     BLK="blk",
     BOX="box",
     EXPL="expl",
-    BUB="bub"
+    BUB="bub",
+    POTION="potion",
 }
 
 export enum AudioKey{
@@ -126,6 +128,7 @@ export class Start extends SysScene<{
         this.load.spritesheet(SpriteKey.BLK,blk,{frameWidth:40,frameHeight:40});
         this.load.spritesheet(SpriteKey.EXPL,expl,{frameWidth:40,frameHeight:40});
         this.load.spritesheet(SpriteKey.BOX,box,{frameWidth:40,frameHeight:40});
+        this.load.spritesheet(SpriteKey.POTION,potion,{frameWidth:33,frameHeight:40});
         this.load.audio(AudioKey.LOON,loon);
         this.load.audio(AudioKey.EXPLO,explode);
         this.load.spritesheet(SpriteKey.GRASS,grass,{frameWidth:384,frameHeight:64});
