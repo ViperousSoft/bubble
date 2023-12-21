@@ -214,10 +214,20 @@ export class Pause extends SysScene<{
         });
         b.defaults();
         b.setText("Resume");
-        b.setPosition(150,200);
+        b.setPosition(150,180);
         b.setSize(100,50);
         b.setDepth(1);
         b.activate();
+
+        const b1=new Button(this,()=>{
+            this.myEvents.emit("restart");
+        });
+        b1.defaults();
+        b1.setText("Restart");
+        b1.setPosition(150,240);
+        b1.setSize(100,50);
+        b1.setDepth(1);
+        b1.activate();
 
         const b2=new Button(this,()=>{
             this.myEvents.emit("main");
@@ -348,9 +358,9 @@ export class EnvScene extends Phaser.Scene{
     }
     protected init(){
         this.myEvents.emit("init");
-        this.events.once("shutdown",()=>{
+        /*this.events.once("shutdown",()=>{
             this.myEvents.removeAllListeners();
-        });
+        });*/
     }
     protected preload(){
         this.myEvents.emit("preload");
@@ -432,7 +442,7 @@ export class Mgr{
                 this.gameover.text=s;
                 SceneUtils.launch(this.gameover);
             });
-            this.pause.rect=new Phaser.Geom.Rectangle(200,100,400,400);
+            this.pause.rect=new Phaser.Geom.Rectangle(500,100,400,400);
             this.env.on("pause",()=>{
                 this.pause.activate();
             });
@@ -451,6 +461,11 @@ export class Mgr{
         this.pause.myEvents.on("resume",()=>{
             this.env.resume();
             this.pause.deactivate();
+        });
+        this.pause.myEvents.on("restart",()=>{
+            this.env.cleanUp();
+            this.pause.deactivate();
+            this.env.launch();
         });
         this.help.myEvents.on("main",()=>{
             this.start.activate();

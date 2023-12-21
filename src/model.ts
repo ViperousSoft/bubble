@@ -889,8 +889,8 @@ export class PVPEnv extends Env<{
             });
             b.defaults();
             b.setText("Pause");
-            b.setPosition(50,300);
-            b.setSize(100,50);
+            b.setPosition(100,50);
+            b.setSize(200,100);
             b.activate();
             
             this.s.cameras.main.setViewport(500,0,400,600);
