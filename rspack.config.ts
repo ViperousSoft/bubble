@@ -25,7 +25,7 @@ export default defineConfig({
         "phaser":"Phaser",
         "eventemitter3":"EventEmitter"
     },
-    //devtool:false,
+    devtool:false,
     plugins:[new HtmlRspackPlugin({
         template:"src/index.html"
     })]
