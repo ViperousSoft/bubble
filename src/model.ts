@@ -835,6 +835,7 @@ export class PVPEnv extends Env<{
     gens:number;
     players:Map<number,Player>;
     newi:number;
+    norm:boolean;
     constructor(main:EnvScene,s:EnvScene,pk1:PlayerKey,pk2:PlayerKey){
         super(main,s);
         this.main=main;
@@ -848,6 +849,7 @@ export class PVPEnv extends Env<{
         this.gens=0;
         this.players=new Map();
         this.newi=0;
+        this.norm=true;
 
         this.s.myEvents.on("create",()=>{
 
@@ -927,6 +929,21 @@ export class PVPEnv extends Env<{
             this.egroup=this.main.physics.add.group();
             this.pgroup=this.main.physics.add.group();
             this.main.sound.play(AudioKey.LOON,{loop:true});
+
+            this.main.time.addEvent({
+                delay:10000,
+                callback:()=>{
+                    this.land();
+                },
+                loop:true
+            });
+            this.main.time.addEvent({
+                delay:30000,
+                callback:()=>{
+                    this.gen();
+                },
+                loop:true
+            });
             
 
             this.main.scale.resize(1400,600);
@@ -1042,9 +1059,22 @@ export class PVPEnv extends Env<{
             this.time=Math.max(0,this.time-delta);
             this.timebar.setCur(this.time);
 
+            if(this.norm&&this.time==0){
+                this.norm=false;
+                this.main.time.addEvent({
+                    delay:5000,
+                    loop:true,
+                    callback:()=>{
+                        this.land();
+                    }
+                });
+            }
+
+            
             for(const player of this.players.values()){
                 player.bluecd=Math.min(100,player.bluecd+delta*0.05);
                 player.redcd=Math.min(100,player.redcd+delta*0.04);
+                player.greencd=Math.min(100,player.greencd+delta*0.02);
 
                 if(player===this.player1){
                     this.pb.setCur(player.bluecd);
@@ -1091,6 +1121,25 @@ export class PVPEnv extends Env<{
                 this.player2.input.pivot=undefined;
             }
             
+            for(const player of this.players.values()){
+                if(player===this.player1||player===this.player2)continue;
+                if(Math.random()<0.04){
+                    let r:number;
+                    do{
+                        r=Math.floor(Math.random()*4);
+                    }while(r==player.pivot);
+                    player.input.pivot=r;
+                }
+                if(player.bluecd==100){
+                    player.input.bubble=BubbleType.BLUE;
+                }
+                else if(player.redcd==100){
+                    player.input.bubble=BubbleType.RED;
+                }
+                else if(player.greencd==100){
+                    player.input.bubble=BubbleType.GREEN;
+                }
+            }
 
             this.main.physics.overlap(this.pgroup,this.egroup,(a,b)=>{
                 
@@ -1364,7 +1413,7 @@ export class PVPEnv extends Env<{
         for(let i=0;i<this.board.map.width;i++){
             for(let j=0;j<this.board.map.height;j++){
                 let b=false;
-                for(const player of [this.player1,this.player2]){
+                for(const player of this.players.values()){
                     if(player.getPosition().distance(this.board.cent({x:i,y:j}))<2*this.board.map.tileWidth){
                         b=true;
                         break;
@@ -1377,7 +1426,7 @@ export class PVPEnv extends Env<{
                 if(this.board.hasBox(new Phaser.Math.Vector2(i,j)))continue;
                 if(Math.random()<4/(this.gens+10))continue;
                 //const l=[Math.max(0,0.1*(this.gens-3)),Math.max(0,0.2*(this.gens-2)),Math.max(0,0.3*(this.gens-2)),0.05*(this.gens-1),0.05*(this.gens-1),0.1*this.gens,0.1*this.gens,0.5*this.gens,0.5*Math.sqrt(this.gens)];
-                const l=[this.gens,0,0,1,1,this.gens,1,2,2*this.gens,1,1];
+                const l=[0.1*this.gens,1,0,5,1,0.5*Math.sqrt(this.gens),1,2,Math.sqrt(this.gens),6,3];
                 const tp=[BoxType.MAN,BoxType.SILVER,BoxType.GOLD,BoxType.DARK,BoxType.PURPLE,BoxType.GREEN,BoxType.BLACK,BoxType.RED,BoxType.BLUE,BoxType.N,BoxType.O];
                 const res=Math.random()*l.reduce((p,a)=>p+a);
                 let s=0;
@@ -1408,10 +1457,25 @@ export class PVPEnv extends Env<{
         this.time=120000;
         this.newi=0;
         this.players.clear();
-        //this.record(this.player1);
-        //this.record(this.player2);
+        this.norm=true;
     }
     cleanUp(){
         this.main.sound.stopAll();
+    }
+    land(){
+        let x,y;
+        do{
+            x=Math.floor(Math.random()*this.board.map.width);
+            y=Math.floor(Math.random()*this.board.map.height);
+        }while(this.board.ground.getTileAt(x,y).index!=Terrain.EMPTY||this.board.hasBox(new Phaser.Math.Vector2(x,y)));
+        const p=new Player(this.board,PlayerKey.BOY,"Bot");
+        p.setUnit(new Phaser.Math.Vector2(x,y));
+        p.activate();
+        p.sprite.body.setSize(10,10,false);
+        p.sprite.body.setOffset(19,45);
+        p.life=10;
+        this.pgroup.add(p.sprite);
+        this.record(p);
+        return p;
     }
 }
