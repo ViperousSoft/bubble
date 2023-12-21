@@ -286,6 +286,7 @@ export abstract class Env<R extends object> extends EventEmitter<{
         this.emit("resume");
     }
     done(r?:R){
+        this.cleanUp();
         for(const s of this.scenes){
             SceneUtils.remove(s);
         }
@@ -301,6 +302,7 @@ export abstract class Env<R extends object> extends EventEmitter<{
     }
     abstract quitResult():R;
     abstract reset():void;
+    abstract cleanUp():void;
 }
 
 export class BoxEnv extends Env<{
@@ -319,7 +321,7 @@ export class BoxEnv extends Env<{
     timebar!:Bar;
     pb!:Plate;
     pr!:Plate;
-    blink!:Phaser.Time.TimerEvent;
+    //blink!:Phaser.Time.TimerEvent;
     keys!:Record<ValidKeyCodes,Phaser.Input.Keyboard.Key>;
     gens:number;
     constructor(main:EnvScene,s:EnvScene,pkey:PlayerKey){
@@ -466,6 +468,7 @@ export class BoxEnv extends Env<{
             this.main.physics.add.collider(this.player.sprite,this.board.box);
             this.main.physics.add.collider(this.player.sprite,this.board.ground);
 
+            this.gens=3;
             this.gen();
 
             this.main.cameras.addExisting(this.player.cam(600,600),true);
@@ -626,7 +629,7 @@ export class BoxEnv extends Env<{
         });
     }
     pop(b:Bubble){
-        this.main.sound.play("explode");
+        this.main.sound.play(AudioKey.EXPLO);
         switch(b.type){
         case BubbleType.BLUE:
             for(let i=0;i<=2;i++){
@@ -765,7 +768,7 @@ export class BoxEnv extends Env<{
                 if(t!=Terrain.EMPTY)continue;
                 if(this.board.hasBox(new Phaser.Math.Vector2(i,j)))continue;
                 if(Math.random()<4/(this.gens+10))continue;
-                const l=[Math.max(0,0.1*(this.gens-3)),Math.max(0,0.2*(this.gens-2)),Math.max(0,0.3*(this.gens-2)),0.05*(this.gens-1),0.05*(this.gens-1),0.1*this.gens,0.1*this.gens,0.5*this.gens,0.5*Math.sqrt(this.gens)];
+                const l=[Math.max(0,0.5*(this.gens-3)),Math.max(0,0.1*(this.gens-2)),Math.max(0,0.3*(this.gens-2)),0.05*(this.gens-1),0.05*(this.gens-1),0.1*this.gens,0.1*this.gens,this.gens,Math.sqrt(this.gens)];
                 const tp=[BoxType.SILVER,BoxType.GOLD,BoxType.DARK,BoxType.PURPLE,BoxType.GREEN,BoxType.BLACK,BoxType.BLUE,BoxType.N,BoxType.O];
                 const res=Math.random()*l.reduce((p,a)=>p+a);
                 let s=0;
@@ -787,6 +790,9 @@ export class BoxEnv extends Env<{
         this.redcd=0;
         this.gens=0;
     }
+    cleanUp(){
+        this.main.sound.stopAll();
+    }
 }
 
 export class PVPEnv extends Env<{
@@ -801,15 +807,19 @@ export class PVPEnv extends Env<{
     board!:Board;
     egroup!:Phaser.Physics.Arcade.Group;
     pgroup!:Phaser.Physics.Arcade.Group;
-    score:number;
+    //score:number;
     time:number;
     bluecd:number;
     redcd:number;
+    bluecd2:number;
+    redcd2:number;
     text!:Phaser.GameObjects.Text;
     timebar!:Bar;
     pb!:Plate;
     pr!:Plate;
-    blink!:Phaser.Time.TimerEvent;
+    pb2!:Plate;
+    pr2!:Plate;
+    //blink!:Phaser.Time.TimerEvent;
     keys!:Record<ValidKeyCodes,Phaser.Input.Keyboard.Key>;
     gens:number;
     players:Map<number,Player>;
@@ -818,10 +828,12 @@ export class PVPEnv extends Env<{
         super(main,s);
         this.main=main;
         this.s=s;
-        this.score=0;
+        //this.score=0;
         this.time=0;
         this.bluecd=0;
         this.redcd=0;
+        this.bluecd2=0;
+        this.redcd2=0;
         this.gens=0;
         this.players=new Map();
         this.newi=0;
@@ -1320,5 +1332,8 @@ export class PVPEnv extends Env<{
     }
     reset(){
         
+    }
+    cleanUp(){
+        this.main.sound.stopAll();
     }
 }

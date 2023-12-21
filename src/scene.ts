@@ -452,6 +452,10 @@ export class Mgr{
             this.start.activate();
             this.help.deactivate();
         });
+        this.gameover.myEvents.on("main",()=>{
+            this.start.activate();
+            this.gameover.deactivate();
+        });
         
         this.game=new Phaser.Game({
             type:Phaser.AUTO,
