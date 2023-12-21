@@ -485,7 +485,7 @@ export class Mgr{
             physics:{
                 default:"arcade",
                 arcade:{
-                    debug:true
+                    debug:false
                 }
             },
             scale:{

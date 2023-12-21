@@ -139,7 +139,7 @@ export class BoardLike extends BasePhysicsModel{
 export class Bubble extends BoardLike{
     type:BubbleType;
     constructor(board:Board,type:BubbleType){
-        super(board,board.scene.physics.add.sprite(0,0,"bub"));
+        super(board,board.scene.physics.add.sprite(0,0,"bub").setDepth(1));
         this.type=type;
     }
     
@@ -148,7 +148,7 @@ export class Bubble extends BoardLike{
 export class Explosion extends BoardLike{
     type:ExplosionType;
     constructor(board:Board,type:ExplosionType){
-        super(board,board.scene.physics.add.sprite(0,0,"expl"));
+        super(board,board.scene.physics.add.sprite(0,0,"expl").setDepth(2));
         this.type=type;
         this.sprite.setFrame(type);
         //this.board.scene.egroup!.add(this.sprite);
@@ -265,6 +265,10 @@ export class Player extends BasePhysicsModel{
     }
     getPosition(){
         return new Phaser.Math.Vector2(this.sprite.getTopLeft().x!+24,this.sprite.getTopLeft().y!+50);
+    }
+    destroy(){
+        this.sprite.destroy();
+        this.text.destroy();
     }
 }
 
@@ -820,6 +824,8 @@ export class PVPEnv extends Env<{
     
     text!:Phaser.GameObjects.Text;
     timebar!:Bar;
+    hp!:Bar;
+    hp2!:Bar;
     pb!:Plate;
     pr!:Plate;
     pb2!:Plate;
@@ -855,6 +861,24 @@ export class PVPEnv extends Env<{
             this.timebar.setLineWidth(2);
             this.timebar.setSize(300,20);
             this.timebar.activate();
+
+            this.hp=new Bar(this.s);
+            this.hp.setMax(5);
+            this.hp.setCur(5);
+            this.hp.setColor(0x00ff00);
+            this.hp.setPosition(50,250);
+            this.hp.setLineWidth(2);
+            this.hp.setSize(100,20);
+            this.hp.activate();
+
+            this.hp2=new Bar(this.s);
+            this.hp2.setMax(5);
+            this.hp2.setCur(5);
+            this.hp2.setColor(0x00ff00);
+            this.hp2.setPosition(250,250);
+            this.hp2.setLineWidth(2);
+            this.hp2.setSize(100,20);
+            this.hp2.activate();
             
             this.pb=new Plate(this.s);
             this.pb.setColor(0x5050ff);
@@ -920,7 +944,7 @@ export class PVPEnv extends Env<{
             for(let i=0;i<20;i++){
                 const x=Math.floor(Math.random()*(w-2)+1);
                 const y=Math.floor(Math.random()*(h-2)+1);
-                if(x==10&&y==10){
+                if((x==7&&y==7)||(x==14&&y==14)){
                     i--;
                     continue;
                 }
@@ -997,6 +1021,8 @@ export class PVPEnv extends Env<{
             this.player2.sprite.body.setSize(10,10,false);
             this.player2.sprite.body.setOffset(19,45);
 
+            this.player1.life=this.player2.life=5;
+
             this.record(this.player1);
             this.record(this.player2);
 
@@ -1028,18 +1054,11 @@ export class PVPEnv extends Env<{
                     this.pb2.setCur(player.bluecd);
                     this.pr2.setCur(player.redcd);
                 }
+
+                player.update();
                 
             }
             
-
-            /*if(this.timebar.cur==0){
-                this.done({score:this.score});
-                return;
-            }*/
-
-            this.player1.update();
-            this.player2.update();
-
             if(this.keys.A.isDown){
                 this.player1.input.pivot=Pivot.W;
             }
@@ -1098,9 +1117,15 @@ export class PVPEnv extends Env<{
                     break;
                 default:break;
                 }
+                if(player===this.player1){
+                    this.hp.setCur(player.life);
+                }
+                else if(player===this.player2){
+                    this.hp2.setCur(player.life);
+                }
                 if(player.life<=0){
                     this.players.delete(a.state as number);
-                    player.sprite.destroy();
+                    player.destroy();
                     if(player===this.player1){
                         this.done({winner:"Player2"},"Player2 wins!");
                     }
@@ -1184,6 +1209,17 @@ export class PVPEnv extends Env<{
                 case BoxType.GOLD:
                     bo.putTileAt(-1,a.x,a.y);
                     //this.upd(2);
+                    break;
+                case BoxType.MAN:
+                    bo.putTileAt(-1,a.x,a.y);
+                    const p=new Player(this.board,PlayerKey.BOY,"Bot");
+                    p.setUnit(a);
+                    p.activate();
+                    p.sprite.body.setSize(10,10,false);
+                    p.sprite.body.setOffset(19,45);
+                    p.life=10;
+                    this.pgroup.add(p.sprite);
+                    this.record(p);
                     break;
                 default:break;
                 }
