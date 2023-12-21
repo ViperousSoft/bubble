@@ -276,19 +276,22 @@ export class Choose extends SysScene<{
     l:ValidKeyCodes;
     r:ValidKeyCodes;
     blink!:Phaser.Time.TimerEvent;
+    done:boolean;
     constructor(l:ValidKeyCodes,r:ValidKeyCodes){
         super(`vs${Math.random()*100000}`);
         this.i=0;
         this.l=l;
         this.r=r;
+        this.done=false;
     }
     create(){
-        this.add.tileSprite(0,0,400,600,SpriteKey.GRASS,2).setOrigin(0,0);
+        this.add.tileSprite(0,0,400,600,SpriteKey.GRASS,1).setOrigin(0,0);
         this.sprite=this.add.sprite(200,300,PlayerKey.BOY,0);
         const k=Keyboard.getKeyboardKeys(this);
         this.prv=k[this.l];
         this.nxt=k[this.r];
         const b=new Button(this,()=>{
+            this.done=true;
             this.blink.paused=true;
             this.sprite.setVisible(true);
             SceneUtils.pause(this);
@@ -316,6 +319,7 @@ export class Choose extends SysScene<{
         })
     }
     ready(){
+        if(this.done)return Promise.resolve(Choose.keys[this.i]);
         return new Promise<PlayerKey>((res)=>{
             this.myEvents.once("done",k=>{
                 res(k);
@@ -392,9 +396,9 @@ export class Mgr{
             const s=new EnvScene("s");
             this.game.scene.add("s",s);
             this.env=new BoxEnv(main,s,k);
-            this.env.on("done",r=>{
-                this.gameover.text=r.toString();
-                this.gameover.rect=new Phaser.Geom.Rectangle(200,100,400,400);
+            this.env.on("done",(r,s)=>{
+                this.gameover.text=s;
+                //this.gameover.rect=new Phaser.Geom.Rectangle(200,100,400,400);
                 SceneUtils.launch(this.gameover);
             });
             this.pause.rect=new Phaser.Geom.Rectangle(200,100,400,400);
@@ -415,6 +419,7 @@ export class Mgr{
             this.game.scene.add("choose2",ch2,true);
 
             const k1=await ch1.ready();
+            console.log(ch2.done);
             const k2=await ch2.ready();
             SceneUtils.remove(ch1);
             SceneUtils.remove(ch2);
@@ -424,9 +429,10 @@ export class Mgr{
             const s=new EnvScene("s");
             this.game.scene.add("s",s);
             this.env=new PVPEnv(main,s,k1,k2);
-            this.env.on("done",r=>{
-                this.gameover.text=r.toString();
-                this.gameover.rect=new Phaser.Geom.Rectangle(200,100,400,400);
+            this.env.on("done",(r,s)=>{
+                this.gameover.text=s;
+                //this.gameover.rect=new Phaser.Geom.Rectangle(200,100,400,400);
+                //console.log("gfgd");
                 SceneUtils.launch(this.gameover);
             });
             this.pause.rect=new Phaser.Geom.Rectangle(200,100,400,400);
@@ -453,6 +459,7 @@ export class Mgr{
             this.help.deactivate();
         });
         this.gameover.myEvents.on("main",()=>{
+            this.env.remove();
             this.start.activate();
             this.gameover.deactivate();
         });

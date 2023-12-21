@@ -178,6 +178,9 @@ export class Player extends BasePhysicsModel{
     input:PlayerInput;
     key:PlayerKey;
     life:number;
+    bluecd:number;
+    redcd:number;
+    greencd:number;
     constructor(board:Board,key:PlayerKey,txt:string){
         super(board,board.scene.physics.add.sprite(0,0,key).setOrigin(0.5,0.7));
         this.pivot=Pivot.S;
@@ -187,6 +190,9 @@ export class Player extends BasePhysicsModel{
         this.input=new PlayerInput();
         this.key=key;
         this.life=0;
+        this.bluecd=0;
+        this.redcd=0;
+        this.greencd=0;
         this.blink=board.scene.time.addEvent({
             delay:150,
             loop:true,
@@ -263,7 +269,7 @@ export class Player extends BasePhysicsModel{
 }
 
 export abstract class Env<R extends object> extends EventEmitter<{
-    done:[R],
+    done:[R,string],
     pause:[],
     resume:[],
     launch:[]
@@ -285,13 +291,12 @@ export abstract class Env<R extends object> extends EventEmitter<{
         }
         this.emit("resume");
     }
-    done(r?:R){
+    done(r?:R,s?:string){
         this.cleanUp();
         for(const s of this.scenes){
-            SceneUtils.remove(s);
+            SceneUtils.pause(s);
         }
-        this.scenes=[];
-        this.emit("done",r||this.quitResult());
+        this.emit("done",r||this.quitResult(),s||"");
     }
     launch(){
         for(const s of this.scenes){
@@ -299,6 +304,12 @@ export abstract class Env<R extends object> extends EventEmitter<{
         }
         this.emit("launch");
         this.reset();
+    }
+    remove(){
+        for(const s of this.scenes){
+            SceneUtils.remove(s);
+        }
+        this.scenes=[];
     }
     abstract quitResult():R;
     abstract reset():void;
@@ -482,10 +493,10 @@ export class BoxEnv extends Env<{
             this.pr.setCur(this.redcd);
 
             if(this.timebar.cur==0){
-                this.done({score:this.score});
+                this.done({score:this.score},`Score: ${this.score}`);
                 return;
             }
-            
+            this.player.update();
             if(this.keys.A.isDown){
                 this.player.input.pivot=Pivot.W;
             }
@@ -809,10 +820,7 @@ export class PVPEnv extends Env<{
     pgroup!:Phaser.Physics.Arcade.Group;
     //score:number;
     time:number;
-    bluecd:number;
-    redcd:number;
-    bluecd2:number;
-    redcd2:number;
+    
     text!:Phaser.GameObjects.Text;
     timebar!:Bar;
     pb!:Plate;
@@ -830,10 +838,10 @@ export class PVPEnv extends Env<{
         this.s=s;
         //this.score=0;
         this.time=0;
-        this.bluecd=0;
+        /*this.bluecd=0;
         this.redcd=0;
         this.bluecd2=0;
-        this.redcd2=0;
+        this.redcd2=0;*/
         this.gens=0;
         this.players=new Map();
         this.newi=0;
@@ -865,6 +873,19 @@ export class PVPEnv extends Env<{
             this.pr.setMax(100);
             this.pr.activate();
             
+            this.pb2=new Plate(this.s);
+            this.pb2.setColor(0x5050ff);
+            this.pb2.setPosition(250,400);
+            this.pb2.setSize(25);
+            this.pb2.setMax(100);
+            this.pb2.activate();
+            
+            this.pr2=new Plate(this.s);
+            this.pr2.setColor(0xff0000);
+            this.pr2.setPosition(350,400);
+            this.pr2.setSize(25);
+            this.pr2.setMax(100);
+            this.pr2.activate();
             
             const b=new Button(this.s,()=>{
                 this.pause();
@@ -909,7 +930,7 @@ export class PVPEnv extends Env<{
                 this.board.ground.putTileAt(Terrain.CACTUS,x,y);
             }
             this.main.physics.world.on("worldstep",(d:number)=>{
-                for(const player of [this.player1,this.player2]){
+                for(const player of this.players.values()){
                     if(player.input.pivot!==undefined){
                         player.start(player.input.pivot);
                         //this.player.input.pivot=undefined;
@@ -921,14 +942,19 @@ export class PVPEnv extends Env<{
                         let ok=false;
                         switch(player.input.bubble){
                         case BubbleType.BLUE:
-                            if(this.bluecd<100)break;
+                            if(player.bluecd<100)break;
                             ok=true;
-                            this.bluecd=0;
+                            player.bluecd=0;
                             break;
                         case BubbleType.RED:
-                            if(this.redcd<100)break;
+                            if(player.redcd<100)break;
                             ok=true;
-                            this.redcd=0;
+                            player.redcd=0;
+                            break;
+                        case BubbleType.GREEN:
+                            if(player.greencd<100)break;
+                            ok=true;
+                            player.greencd=0;
                             break;
                         default:break;
                         }
@@ -993,16 +1019,31 @@ export class PVPEnv extends Env<{
         this.main.myEvents.on("update",(t,delta)=>{
             this.time=Math.max(0,this.time-delta);
             this.timebar.setCur(this.time);
-            this.bluecd=Math.min(100,this.bluecd+delta*0.05);
-            this.pb.setCur(this.bluecd);
-            this.redcd=Math.min(100,this.redcd+delta*0.04);
-            this.pr.setCur(this.redcd);
+
+            for(const player of this.players.values()){
+                player.bluecd=Math.min(100,player.bluecd+delta*0.05);
+                player.redcd=Math.min(100,player.redcd+delta*0.04);
+
+                if(player===this.player1){
+                    this.pb.setCur(player.bluecd);
+                    this.pr.setCur(player.redcd);
+                }
+                else if(player===this.player2){
+                    this.pb2.setCur(player.bluecd);
+                    this.pr2.setCur(player.redcd);
+                }
+                
+            }
+            
 
             /*if(this.timebar.cur==0){
                 this.done({score:this.score});
                 return;
             }*/
-            
+
+            this.player1.update();
+            this.player2.update();
+
             if(this.keys.A.isDown){
                 this.player1.input.pivot=Pivot.W;
             }
@@ -1063,11 +1104,12 @@ export class PVPEnv extends Env<{
                 }
                 if(player.life<=0){
                     this.players.delete(a.state as number);
+                    player.sprite.destroy();
                     if(player===this.player1){
-                        this.done({winner:"Player2"});
+                        this.done({winner:"Player2"},"Player2 wins!");
                     }
                     else if(player===this.player2){
-                        this.done({winner:"Player1"});
+                        this.done({winner:"Player1"},"Player1 wins!");
                     }
                 }
             });

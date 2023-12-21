@@ -67,6 +67,7 @@ export class IterateUtils{
 export class SceneUtils{
     static launch(scene:Phaser.Scene){
         scene.scene.launch(scene);
+        scene.scene.bringToTop(scene);
     }
 
     static remove(scene:Phaser.Scene){
@@ -75,6 +76,7 @@ export class SceneUtils{
 
     static shutdown(scene:Phaser.Scene){
         scene.scene.stop(scene);
+        scene.scene.sendToBack(scene);
     }
 
     static pause(scene:Phaser.Scene){
