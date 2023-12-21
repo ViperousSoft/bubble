@@ -11,6 +11,13 @@ Unlike tiles and bubbles, players aren't restricted to certain positions on the 
 
 Each player is controlled either by a human player or by an AI.
 
+The list below shows the basic movement speed and immune time of each character.
+
+BOY: 120px/s 1s
+GIRL: 90px/s 1.5s
+BLUE BOY: 140px/s 0.7s
+BLUE GIRL: 105px/s 1.2s
+
 1.3 Tiles
 
 Each tile on the board can be empty, have a tree, or have a cactus.

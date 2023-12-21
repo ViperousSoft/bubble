@@ -245,13 +245,7 @@ export class Player extends BasePhysicsModel{
         this.walking=true;
         this.pivot=pivot;
         
-        switch(this.key){
-        case PlayerKey.BOY:
-            break;
-        default:break;
-        }
-
-        this.setVelocity(this.getBaseVelocity().scale(100).scale(this.speedtime!=0?1.5:1));
+        this.setVelocity(this.getBaseVelocity().scale(this.getSpeed()).scale(this.speedtime!=0?1.5:1));
         this.sprite.play(`${this.key}${this.pivot}`);
     }
     stop(){
@@ -272,6 +266,32 @@ export class Player extends BasePhysicsModel{
         else{
             this.blink.paused=true;
             this.sprite.setVisible(true);
+        }
+    }
+    getSpeed(){
+        switch(this.key){
+            case PlayerKey.BOY:
+                return 120;
+            case PlayerKey.GIRL:
+                return 90;
+            case PlayerKey.BLUEBOY:
+                return 140;
+            case PlayerKey.BLUEGIRL:
+                return 105;
+            default:break;
+        }
+        return 0;
+    }
+    getNo(){
+        switch(this.key){
+        case PlayerKey.BOY:
+            return 1000;
+        case PlayerKey.GIRL:
+            return 1500;
+        case PlayerKey.BLUEBOY:
+            return 700;
+        case PlayerKey.BLUEGIRL:
+            return 1200;
         }
     }
     getPosition(){
