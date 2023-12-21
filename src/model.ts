@@ -144,11 +144,12 @@ export class BoardLike extends BasePhysicsModel{
 
 export class Bubble extends BoardLike{
     type:BubbleType;
+    attack:boolean;
     constructor(board:Board,type:BubbleType){
         super(board,board.scene.physics.add.sprite(0,0,SpriteKey.BUB).setDepth(1));
         this.type=type;
+        this.attack=false;
     }
-    
 }
 
 export class Explosion extends BoardLike{
@@ -195,6 +196,7 @@ export class Player extends BasePhysicsModel{
     redcd:number;
     greencd:number;
     speedtime:number;
+    attacktime:number;
     constructor(board:Board,key:PlayerKey,txt:string){
         super(board,board.scene.physics.add.sprite(0,0,key).setOrigin(0.5,0.7));
         this.pivot=Pivot.S;
@@ -208,6 +210,7 @@ export class Player extends BasePhysicsModel{
         this.redcd=0;
         this.greencd=0;
         this.speedtime=0;
+        this.attacktime=0;
         this.blink=board.scene.time.addEvent({
             delay:150,
             loop:true,
@@ -958,7 +961,8 @@ export class PVPEnv extends Env<{
                 delay:5000,
                 loop:true,
                 callback:()=>{
-                    this.landPotion(PotionType.SPEED);
+                    if(Math.random()>0.5)this.landPotion(PotionType.SPEED);
+                    else this.landPotion(PotionType.ATTACK);
                 }
             });
             
@@ -1015,6 +1019,7 @@ export class PVPEnv extends Env<{
                         }
                         if(ok){
                             const b=new Bubble(this.board,player.input.bubble);
+                            if(player.attacktime!=0)b.attack=true;
                             b.setUnit(this.board.unit(player.getPosition()));
                             this.start(b,2000);
                         }
@@ -1093,6 +1098,7 @@ export class PVPEnv extends Env<{
                 player.redcd=Math.min(100,player.redcd+delta*0.04);
                 player.greencd=Math.min(100,player.greencd+delta*0.02);
                 player.speedtime=Math.max(0,player.speedtime-delta);
+                player.attacktime=Math.max(0,player.attacktime-delta);
 
                 if(player===this.player1){
                     this.pb.setCur(player.bluecd);
@@ -1297,7 +1303,10 @@ export class PVPEnv extends Env<{
                 const p=this.getPlayer(a);
                 switch(b.state){
                 case PotionType.SPEED:
-                    p.speedtime=5000;
+                    p.speedtime=10000;
+                    break;
+                case PotionType.ATTACK:
+                    p.attacktime=10000;
                     break;
                 default:break;
                 }
@@ -1324,7 +1333,7 @@ export class PVPEnv extends Env<{
         this.main.sound.play("explode");
         switch(b.type){
         case BubbleType.BLUE:
-            for(let i=0;i<=2;i++){
+            for(let i=0;i<=(b.attack?3:2);i++){
                 IterateUtils.iterateX(i,v=>{
                     const x=b.getUnit().add(v);
                     if(!this.board.check(x))return;
@@ -1342,6 +1351,37 @@ export class PVPEnv extends Env<{
             }
             break;
         case BubbleType.RED:
+            if(b.attack){
+                IterateUtils.iterateO(1,1,v=>{
+                    const x=b.getUnit().add(v);
+                    if(!this.board.check(x))return;
+                    const l=new Explosion(this.board,ExplosionType.RED);
+                    this.egroup.add(l.sprite);
+                    l.setUnit(x);
+                    l.activate();
+                    this.main.time.addEvent({
+                        delay:500,
+                        callback:()=>{
+                            l.sprite.destroy();
+                        }
+                    });
+                });
+                IterateUtils.iterateH(2,0,v=>{
+                    const x=b.getUnit().add(v);
+                    if(!this.board.check(x))return;
+                    const l=new Explosion(this.board,ExplosionType.O);
+                    this.egroup.add(l.sprite);
+                    l.setUnit(x);
+                    l.activate();
+                    this.main.time.addEvent({
+                        delay:500,
+                        callback:()=>{
+                            l.sprite.destroy();
+                        }
+                    });
+                });
+                break;
+            }
             for(let i=0;i<=1;i++){
                 IterateUtils.iterateX(i,v=>{
                     const x=b.getUnit().add(v);
