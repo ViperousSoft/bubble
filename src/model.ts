@@ -438,7 +438,6 @@ export class BoxEnv extends Env<{
                     }
                     if(ok){
                         const b=new Bubble(this.board,this.player.input.bubble);
-                        //console.log(this.player.getPosition());
                         b.setUnit(this.board.unit(this.player.getPosition()));
                         this.start(b,2000);
                     }
@@ -772,8 +771,6 @@ export class BoxEnv extends Env<{
         this.gens++;
         for(let i=0;i<this.board.map.width;i++){
             for(let j=0;j<this.board.map.height;j++){
-                console.log(this.player.getPosition());
-                console.log(this.board.cent({x:i,y:j}));
                 if(this.player.getPosition().distance(this.board.cent({x:i,y:j}))<2*this.board.map.tileWidth)continue;
                 const t=this.board.ground.getTileAt(i,j,true).index;
                 if(t!=Terrain.EMPTY)continue;
@@ -852,11 +849,11 @@ export class PVPEnv extends Env<{
             this.s.add.tileSprite(200,0,200,600,SpriteKey.GRASS,2).setOrigin(0,0);
             //this.text=this.s.add.text(100,100,"0").setOrigin(0.5,0.5).setColor("#fff000").setFontSize(20);
             this.timebar=new Bar(this.s);
-            this.timebar.setMax(180000);
+            this.timebar.setMax(120000);
             this.timebar.setColor(0xffffff);
             this.timebar.setPosition(50,200);
             this.timebar.setLineWidth(2);
-            this.timebar.setSize(100,20);
+            this.timebar.setSize(300,20);
             this.timebar.activate();
             
             this.pb=new Plate(this.s);
@@ -960,7 +957,6 @@ export class PVPEnv extends Env<{
                         }
                         if(ok){
                             const b=new Bubble(this.board,player.input.bubble);
-                            //console.log(this.player.getPosition());
                             b.setUnit(this.board.unit(player.getPosition()));
                             this.start(b,2000);
                         }
@@ -1373,7 +1369,11 @@ export class PVPEnv extends Env<{
        return {winner:"None"};
     }
     reset(){
-        
+        this.time=120000;
+        this.newi=0;
+        this.players.clear();
+        //this.record(this.player1);
+        //this.record(this.player2);
     }
     cleanUp(){
         this.main.sound.stopAll();

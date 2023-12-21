@@ -419,7 +419,6 @@ export class Mgr{
             this.game.scene.add("choose2",ch2,true);
 
             const k1=await ch1.ready();
-            console.log(ch2.done);
             const k2=await ch2.ready();
             SceneUtils.remove(ch1);
             SceneUtils.remove(ch2);
@@ -431,8 +430,6 @@ export class Mgr{
             this.env=new PVPEnv(main,s,k1,k2);
             this.env.on("done",(r,s)=>{
                 this.gameover.text=s;
-                //this.gameover.rect=new Phaser.Geom.Rectangle(200,100,400,400);
-                //console.log("gfgd");
                 SceneUtils.launch(this.gameover);
             });
             this.pause.rect=new Phaser.Geom.Rectangle(200,100,400,400);
@@ -447,6 +444,7 @@ export class Mgr{
         this.pause.myEvents.on("main",()=>{
             this.env.removeAllListeners();
             this.env.done();
+            this.env.remove();
             this.start.activate();
             this.pause.deactivate();
         });
