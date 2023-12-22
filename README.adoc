@@ -10,7 +10,7 @@ This is an HTML5 game made with https://phaser.io[Phaser.js]. Visit https://game
 
 == Requirements
 
-The game should be opened with a browser supporting HTML5 https://caniuse.com/?search=canvas[<canvas>] tag.
+The game should be opened with a browser supporting HTML5 https://caniuse.com/?search=canvas[`<canvas>`] tag.
 
 IMPORTANT: This game requires keyboard control so it may not be compatible with mobile devices.
 
