@@ -1,5 +1,10 @@
 = Bubble
+ifdef::env-github[]
+:important-caption: :heavy_exclamation_mark:
+endif::[]
+ifndef::env-github[]
 :icons: font
+endif::[]
 
 This is an HTML5 game made with https://phaser.io[Phaser.js]. Visit https://game.wahwah.tk/games/bubble[] to play.
 
