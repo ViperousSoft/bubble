@@ -1,4 +1,17 @@
 = Bubble
-:author: Tom-abc
 
-This is an HTML5 game made with https://phaser.io[Phaser.io]. Visit https://game.wahwah.tk/games/bubble[] to play.
+This is an HTML5 game made with https://phaser.io[Phaser.js]. Visit https://game.wahwah.tk/games/bubble[] to play.
+
+== Requirements
+
+The game should be opened with a browser supporting HTML5 https://caniuse.com/?search=canvas[<canvas>] tag.
+
+IMPORTANT: This game requires keyboard control so it may not be compatible with mobile devices.
+
+== More
+
+Visit https://game.wahwah.tk[].
+
+== Attribution
+
+Potion Image: https://www.vecteezy.com/free-vector/magic[Magic Vectors by Vecteezy]
