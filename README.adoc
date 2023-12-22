@@ -1,4 +1,5 @@
 = Bubble
+:icons: font
 
 This is an HTML5 game made with https://phaser.io[Phaser.js]. Visit https://game.wahwah.tk/games/bubble[] to play.
 

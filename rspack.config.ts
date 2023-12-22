@@ -16,6 +16,13 @@ export default defineConfig({
                 type:"asset/resource"
             },
             {
+                test:/\.ico$/,
+                type:"asset/resource",
+                generator:{
+                    filename:"[name][ext]"
+                }
+            },
+            {
                 test:/\.txt$/,
                 type:"asset/source"
             }

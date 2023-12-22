@@ -56,4 +56,4 @@ If you are affected by a bubble, you'll lose points according to the damage you 
 
 3 About
 
-This game is made by Shuang Wu with Phaser.js, an open-source framework. Repo site: https://github.com/Tom-abc/bubble
+This game is made with Phaser.js, an open-source framework. Repo site: https://github.com/Tom-abc/bubble
