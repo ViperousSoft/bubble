@@ -16,13 +16,6 @@ export default defineConfig({
                 type:"asset/resource"
             },
             {
-                test:/\.ico$/,
-                type:"asset/resource",
-                generator:{
-                    filename:"[name][ext]"
-                }
-            },
-            {
                 test:/\.txt$/,
                 type:"asset/source"
             }
@@ -34,6 +27,8 @@ export default defineConfig({
     },
     devtool:false,
     plugins:[new HtmlRspackPlugin({
-        template:"src/index.html"
+        template:"src/index.html",
+        favicon:"assets/favicon.ico",
+        publicPath:"./"
     })]
 });

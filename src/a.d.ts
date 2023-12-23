@@ -14,7 +14,3 @@ declare module "*.txt"{
     const content:string;
     export default content;
 }
-declare module "*.ico"{
-    const path:string;
-    export default path;
-} 
